@@ -1,0 +1,9 @@
+{
+    "name": "haystacklib",
+    "targetType": "library",
+    "description": "Implementation of the http://project-haystack.org specification for tag types and zinc encoding/decoding.",
+    "authors": ["Radu Racariu"],
+    "copyright": "(c) 2017, Radu Racariu",
+    "homepage": "https://github.com/rracariu/haystacklib",
+    "license": "BSL-1.0"
+}
