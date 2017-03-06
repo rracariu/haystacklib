@@ -26,8 +26,8 @@ class FilterException : Exception
     }
 }
 
-/// A $(D Path) resolver type;
-alias Resolver = Tag function(const(Dict), const(string[]));
+/// An empty resolver
+alias EmptyResolver = Path.emptyResolver!Dict;
 
 /**
 Haystack filter
@@ -37,7 +37,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 {
     alias Lexer = ZincLexer!(Range);
 
-    this(Range r, Resolver resolver = null)
+    this(Range r)
     {
         auto lexer = Lexer(r);
         if (lexer.empty)
@@ -46,14 +46,13 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
     }
     @disable this(this);
 
-    bool eval(const(Dict) dict) const
+    bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
-        return or.eval(dict);
+        return or.eval(obj, resolver);
     }
 
 private:
     Or or; // start node
-    Resolver resolver = null; // callback function for resolving paths
     // parse or expression
     Or parseOr(ref Lexer lexer)
     {
@@ -153,14 +152,14 @@ private:
                         if (lexer.empty)
                              throw InvalidFilterException;
                         lexer.popFront();
-                        if (chr == '<' || chr == '>' || chr == '!')
+                        if (chr == '<' || chr == '>' || chr == '!' || chr == '=')
                         {
                             if (lexer.front.hasChr('='))
                             {
                                 hasEq = true;
                                 lexer.popFront();
                             }
-                            if (lexer.empty)
+                            if (lexer.empty || (chr == '=' && !hasEq))
                                 throw InvalidFilterException;
                         }
                         for(; !lexer.empty; lexer.popFront())
@@ -271,67 +270,61 @@ private:
                     throw InvalidFilterException;
             }
         }
-        return Path(buf.data, resolver);
+        return Path(buf.data);
     }
 
-    static immutable InvalidFilterException = cast(immutable) new FilterException("Invalid filter imput.");
+    static immutable InvalidFilterException = cast(immutable) new FilterException("Invalid filter input.");
 }
 
 unittest
 {
-    alias StrFilter = Filter!string;
+    alias StrFilter = Filter!(string);
     
     auto filter = StrFilter("id or bar");
-    assert(filter.eval(["id": marker]));
-    assert(filter.eval(["bar": marker]));
+    assert(filter.eval(["id": marker], &EmptyResolver));
+    assert(filter.eval(["bar": marker], &EmptyResolver));
 
     filter = StrFilter("not bar");
-    assert(filter.eval(["id": marker]));
-    assert(!filter.eval(["bar": marker]));
+    assert(filter.eval(["id": marker], &EmptyResolver));
+    assert(!filter.eval(["bar": marker], &EmptyResolver));
 
-    filter = StrFilter("test = true");
-    assert(filter.eval(["test": true.tag]));
+    filter = StrFilter("test == true");
+    assert(filter.eval(["test": true.tag], &EmptyResolver));
 
-    try
-    {
-        filter = StrFilter("test = ");
-        assert(filter.eval(["test": true.tag]));
-    }
-    catch(Exception e)
-    {
-        
-    }
+    import std.exception : assertThrown;
+    assertThrown(StrFilter("test = ").eval(["foo": marker], &EmptyResolver));
+    
 
-    filter = StrFilter("age = 6");
-    assert(filter.eval(["age": 6.tag]));
-    assert(!filter.eval(["bar": marker]));
+    filter = StrFilter("age == 6");
+    assert(filter.eval(["age": 6.tag], &EmptyResolver));
+    assert(!filter.eval(["bar": marker], &EmptyResolver));
 
-    filter = StrFilter("age = 6 and foo");
-    assert(filter.eval(["age": 6.tag, "foo": marker]));
+    filter = StrFilter("age == 6 and foo");
+    assert(filter.eval(["age": 6.tag, "foo": marker], &EmptyResolver));
 
     filter = StrFilter("(age and foo)");
-    assert(filter.eval(["age": 6.tag, "foo": marker]));
+    assert(filter.eval(["age": 6.tag, "foo": marker], &EmptyResolver));
 
-    filter = StrFilter(`name = "foo bar"`);
-    assert(filter.eval(["name": "foo bar".tag]));
+    filter = StrFilter(`name == "foo bar"`);
+    assert(filter.eval(["name": "foo bar".tag], &EmptyResolver));
 
     filter = StrFilter(`name >= "foo bar"`);
-    assert(filter.eval(["name": "foo bar".tag]));
+    assert(filter.eval(["name": "foo bar".tag], &EmptyResolver));
 
     filter = StrFilter(`a and b or foo`);
-    assert(filter.eval(["foo": marker]));
+    assert(filter.eval(["foo": marker], &EmptyResolver));
 
     filter = StrFilter(`a or b or foo`);
-    assert(filter.eval(["foo": marker]));
+    assert(filter.eval(["foo": marker], &EmptyResolver));
 
     filter = StrFilter(`a and b and c`);
-    assert(filter.eval(["a": marker, "b": marker, "c": marker]));
+    assert(filter.eval(["a": marker, "b": marker, "c": marker], &EmptyResolver));
 
     filter = StrFilter(`a and b and c or d`);
-    assert(filter.eval(["d": marker]));
+    assert(filter.eval(["d": marker], &EmptyResolver));
 
     filter = StrFilter(`(a or b) and c`);
-    assert(filter.eval(["b": marker, "c": marker]));
+    assert(filter.eval(["b": marker, "c": marker], &EmptyResolver));
 }
 
 /**
@@ -350,12 +343,12 @@ struct Or
 
     @disable this(this);
 
-    bool eval(const(Dict) dict) const
+    bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
         assert(a.isValid, "Invalid 'or' experssion.");
         if (!(cast(Or) this).b.isNull)
-            return a.eval(dict) || b.eval(dict);
-        else return a.eval(dict);
+            return a.eval(obj, resolver) || b.eval(obj, resolver);
+        else return a.eval(obj, resolver);
     }
 }
 
@@ -380,12 +373,12 @@ struct And
         return a.isValid;
     }
 
-    bool eval(const(Dict) dict) const
+    bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
         assert(a.isValid, "Invalid 'and' expression.");
         if (!(cast(And) this).b.isNull && b.isValid)
-            return a.eval(dict) && b.eval(dict);
-        else return a.eval(dict);
+            return a.eval(obj, resolver) && b.eval(obj, resolver);
+        else return a.eval(obj, resolver);
     }
 }
 
@@ -443,18 +436,18 @@ struct Term
         return Term(Type.empty);
     }
     
-    bool eval(const(Dict) dict) const
+    bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
         final switch (type)
         {
             case Type.or:
-                return or.eval(dict);
+                return or.eval(obj, resolver);
             case Type.has:
-                return has.eval(dict);
+                return has.eval(obj, resolver);
             case Type.missing:
-                return missing.eval(dict);
+                return missing.eval(obj, resolver);
             case Type.cmp:
-                return cmp.eval(dict);
+                return cmp.eval(obj, resolver);
             case Type.empty:
                 return false;
         }
@@ -488,35 +481,83 @@ struct Path
 {
     this (string name)
     {
-        this.path = [name];
+        this.segments = [name];
     }
 
-    this (string[] path, Resolver resolver = null)
+    this(string[] segments)
     {
-        this.path = path;
-        this.resolver = resolver;
+        this.segments = segments;
     }
     @disable this();
 
-    Tag resolve(const(Dict) dict) const
+    Tag resolve(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
-        if (path.length == 1)
-            return dictResolver(dict, path);
-        else if (resolver !is null)
-            return resolver(dict, path);
-        else return Tag.init;
+        static if (is(Obj : Dict) || is(Obj : const(Dict)))
+        {
+            if (segments.length == 1)
+                return dictResolver(obj);
+            else if (resolver !is null)
+                return resolver(obj, this);
+            else return Tag.init;
+        }
+        else
+        {
+            if (segments == null || segments.length == 0 || segments[0].length == 0)
+                return Tag.init;
+            return resolver(obj, this);
+        }
     }
 
-    string[] path;
+    string[] segments;
+
+    static Tag emptyResolver(Obj)(Obj, ref const(Path))
+    {
+        return Tag.init;
+    }
     
 private:
-    Resolver resolver;
-    Tag dictResolver(const(Dict) dict, const(string[])) const
+    Tag dictResolver(const(Dict) dict) const
     {
-        if (path == null || path.length == 0 || path[0].length == 0)
+        if (segments == null || segments.length == 0 || segments[0].length == 0)
             return Tag.init;
-        return dict.get(path[0], Tag.init);
+        return dict.get(segments[0], Tag.init);
     }
+}
+unittest
+{
+    auto path = Path("test");
+    auto dictResolver = &Path.emptyResolver!Dict;
+    assert(path.resolve(["test": marker], dictResolver) == marker);
+    auto range = ["test": marker].byKeyValue();
+    Tag rangeResolver (typeof(range) obj, ref const(Path) path)
+    {
+        import std.algorithm : find;
+        return obj.find!(kv => kv.key == path.segments[0]).front.value;
+    }
+    assert(path.resolve(range, &rangeResolver) == marker);
+
+    Dict equip = ["id":"equip".tag, "name": "foobar".tag];
+    
+    Tag resolver(ref const(Dict) dict, ref const(Path) path)
+    {
+        foreach(i, ref p; path.segments)
+        {
+            if (i == 0)
+            {
+                if(!dict.has(p) || equip["id"] != dict[p])
+                    break;
+            }
+            if (i == 1)
+            {
+                return equip.get(p, Tag.init);
+            }
+        }
+
+        return Tag.init;
+    }
+    path = Path(["equipRef", "name"]);
+    assert(path.resolve(["equipRef": "equip".tag], &resolver) == "foobar".tag);
+
 }
 
 ///////////////////////////////////////////////////////////////
@@ -539,14 +580,14 @@ struct Has
     }
     @disable this();
 
-    bool eval(const(Dict) dict) const
+    bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
-        return path.resolve(dict) != Tag.init;
+        return path.resolve(obj, resolver) != Tag.init;
     }
 
     @property Dict tags()
     {
-        return [path.path[0]: marker];
+        return [path.segments[0]: marker];
     }
     
 private:
@@ -555,7 +596,7 @@ private:
 unittest
 {
     auto has = Has("foo");
-    assert(has.eval(["foo":marker]));
+    assert(has.eval(["foo":marker], &EmptyResolver));
     assert(has.tags == ["foo":marker]);
 }
 
@@ -575,9 +616,9 @@ struct Missing
     }
     @disable this();
 
-    bool eval(const(Dict) dict) const
+    bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
-        return !has.eval(dict);
+        return !has.eval(obj, resolver);
     }
     alias has this;
     Has has;
@@ -585,7 +626,7 @@ struct Missing
 unittest
 {
     auto missing = Missing("foo");
-    assert(missing.eval(["bar": marker]));
+    assert(missing.eval(["bar": marker], &EmptyResolver));
     assert(missing.tags == ["foo": marker]);
 }
 
@@ -596,7 +637,7 @@ struct Cmp
 {
     enum Op : string
     {
-        eq = "=",
+        eq = "==",
         notEq = "!=",
         less = "<",
         lessOrEq = "<=",
@@ -622,9 +663,9 @@ struct Cmp
     }
     @disable this();
 
-    bool eval(const(Dict) dict) const
+    bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
-        auto v = path.resolve(dict);
+        auto v = path.resolve(obj, resolver);
         return predicate(v);
     }
 
@@ -634,9 +675,9 @@ struct Cmp
         {
             Type t = Type.init;
             if(typeid(Type) == val.type)
-                return [path.path[$ - 1]: Tag(t)];
+                return [path.segments[$ - 1]: Tag(t)];
         }
-        return [path.path[$]: marker];
+        return [path.segments[$]: marker];
     }
 
 private:
@@ -666,40 +707,40 @@ private:
 }
 unittest
 {
-    auto cmp = Cmp("val", "=", true.tag);
-    assert(cmp.eval(["val": true.tag]));
+    auto cmp = Cmp("val", "==", true.tag);
+    assert(cmp.eval(["val": true.tag], &EmptyResolver));
     assert(cmp.tags == ["val": Bool.init.tag]);
     
     cmp = Cmp("val", "!=", true.tag);
-    assert(cmp.eval(["val": false.tag]));
+    assert(cmp.eval(["val": false.tag], &EmptyResolver));
 
     cmp = Cmp("val", "<", false.tag);
-    assert(cmp.eval(["val": true.tag]));
+    assert(cmp.eval(["val": true.tag], &EmptyResolver));
 
     cmp = Cmp("val", "<", false.tag);
-    assert(cmp.eval(["val": true.tag]));
+    assert(cmp.eval(["val": true.tag], &EmptyResolver));
 
-    cmp = Cmp("val", "=", 1.tag);
-    assert(cmp.eval(["val": 1.tag]));
+    cmp = Cmp("val", "==", 1.tag);
+    assert(cmp.eval(["val": 1.tag], &EmptyResolver));
 
     cmp = Cmp("val", "!=", 1.tag);
-    assert(cmp.eval(["val": 0.tag]));
+    assert(cmp.eval(["val": 0.tag], &EmptyResolver));
 
     cmp = Cmp("val", "<", 100.tag);
-    assert(cmp.eval(["val": 999.tag]));
+    assert(cmp.eval(["val": 999.tag], &EmptyResolver));
 
     cmp = Cmp("val", "<=", 100.tag);
-    assert(cmp.eval(["val": 100.tag]));
+    assert(cmp.eval(["val": 100.tag], &EmptyResolver));
 
     cmp = Cmp("val", ">", 100.tag);
-    assert(cmp.eval(["val": 99.tag]));
+    assert(cmp.eval(["val": 99.tag], &EmptyResolver));
 
     cmp = Cmp("val", ">=", 99.tag);
-    assert(cmp.eval(["val": 99.tag]));
+    assert(cmp.eval(["val": 99.tag], &EmptyResolver));
 
     cmp = Cmp("val", ">=", "foo".tag);
-    assert(cmp.eval(["val": "foo".tag]));
+    assert(cmp.eval(["val": "foo".tag], &EmptyResolver));
 
     cmp = Cmp("val", "<", "fo".tag);
-    assert(cmp.eval(["val": "foo".tag]));
+    assert(cmp.eval(["val": "foo".tag], &EmptyResolver));
 }
