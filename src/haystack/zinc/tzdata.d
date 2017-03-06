@@ -8,12 +8,34 @@ Authors:   Radu Racariu
 **/
 module haystack.zinc.tzdata;
 
+version(Posix)
+{
+    static immutable(TimeZone) timeZone(string name)
+    {
+        return PosixTimeZone.getTimeZone(name);
+    }
+
+    static string getTimeZoneName(immutable(TimeZone) tz)
+    {
+        return tz.name;
+    }
+
+}
 version (Windows)
 {
-    import std.datetime : TimeZone,
+    import std.datetime : TimeZone, UTC,
                           WindowsTimeZone, 
                           parseTZConversions, 
                           TZConversions;
+    import std.string : toUpper;
+
+    static immutable(TimeZone) timeZone(string name)
+    {
+        if (name.toUpper == "UTC")
+            return UTC();
+        auto list = conv.toWindows[name];
+        return WindowsTimeZone.getTimeZone(list[0]);
+    }
 
     static string getTimeZoneName(immutable(TimeZone) tz)
     {

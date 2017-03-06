@@ -1076,7 +1076,7 @@ private:
                     }
                 }
                 string tzName = input.commitStash();
-                import std.datetime : TimeZone, UTC;
+                import std.datetime : UTC;
                 DateTime dt = DateTime(date.get!Date, time.get!Time);
                 if (tzName.empty || tzName == "UTC")
                 {
@@ -1084,16 +1084,16 @@ private:
                 }
                 else
                 {
-                    // TODO: use PosixTimeZone and the Olson db here.
+                    import haystack.zinc.tzdata;
                     try
                     {
-                        auto tz = TimeZone.getTimeZone(tzName);
+                        auto tz = timeZone(tzName);
                         crtToken = Token(TokenType.dateTime, SysTime(dt, tz).Tag);
                     }
                     catch(Exception e)
                     {
-                        import std.string : indexOf;
-                        auto tz = TimeZone.getTimeZone("Etc/GMT" ~ offset[0..offset.indexOf(':')]);
+                        import std.string : indexOf, removechars;
+                        auto tz = timeZone("Etc/GMT" ~ offset[0..offset.indexOf(':')].removechars("0"));
                         crtToken = Token(TokenType.dateTime, SysTime(dt, tz).Tag);
                     }
                 }
