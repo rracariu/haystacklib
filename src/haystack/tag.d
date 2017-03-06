@@ -602,13 +602,15 @@ string toString()(auto const ref Dict dict)
     import std.array : appender;
 
     auto buf = appender!(string)();
+    auto size = dict.length;
     buf.put('{');
     foreach (entry; dict.byKeyValue)
     {
         buf.put(entry.key);
         buf.put(':');
         buf.put(entry.value.toStr);
-        buf.put(',');
+        if (--size > 0)
+            buf.put(',');
     }
     buf.put('}');
     return buf.data;
@@ -747,10 +749,9 @@ struct GridImpl(T)
    /// The column descriptor
    static struct Col
    {
-       T meta;
        string dis;
+       T meta;
 
-       @disable this();
        this(string name, T meta = T.init)
        {
            this.dis = name;
@@ -758,6 +759,32 @@ struct GridImpl(T)
        }
    }
     string ver = "3.0";
+
+    string toString() const
+    {
+        import std.array : appender;
+        auto buf = appender!(string)();
+        buf.put("<\n");
+        buf.put("ver: ");
+        buf.put(ver);
+        buf.put('\n');
+        buf.put("meta: ");
+        buf.put((cast(Dict) meta).toString);
+        buf.put('\n');
+        buf.put("[\n");
+        foreach (i, ref row; val)
+        {
+            Dict rec = cast(Dict) row;
+            buf.put(rec.toString());
+            if (i < val.length - 1)
+                buf.put(',');
+            buf.put('\n');
+        }
+        buf.put(']');
+        buf.put(">\n");
+        return buf.data;
+    }
+
 private:
     // Grid storage
     T[] val;
