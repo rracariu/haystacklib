@@ -987,7 +987,6 @@ private:
                         case State.utc:
                             if (input.front == 'Z') // end of utc date time
                             {
-                                input.popFront();
                                 if (input.empty)
                                     break loop; // done
                                 crtState = State.tz;
@@ -1034,23 +1033,35 @@ private:
                             {
                                 input.stash();
                                 count++;
+                                if (count == 2) // found the minutes number
+                                {
+                                    offset = input.commitStash();
+                                    count = 0;
+                                    crtState++;
+                                }
                                 continue;
                             }
                             else if (count < 2) // must be number
                             {
                                 return false;
                             }
-                            if (count == 2) // found the minutes number
-                            {
-                                offset = input.commitStash();
-                                count = 0;
-                                crtState++;
-                                continue;
-                            }
                             break;
 
                         case State.tz:
-                            if (count == 0) // ensure tz starts with an alpha
+                            if (count == 0)
+                            {
+                                if (input.front == ' ')
+                                {
+                                    count++;
+                                    continue;
+                                }
+                                else
+                                {
+                                    break loop;
+                                }
+                            }
+                            
+                            if (count == 1) // ensure tz starts with an alpha
                             {
                                 if (lexAlpha)
                                 {
@@ -1076,11 +1087,12 @@ private:
                     }
                 }
                 string tzName = input.commitStash();
+                import core.time : msecs;
                 import std.datetime : UTC;
                 DateTime dt = DateTime(date.get!Date, time.get!Time);
                 if (tzName.empty || tzName == "UTC")
                 {
-                    crtToken = Token(TokenType.dateTime, SysTime(dt, UTC()).Tag);
+                    crtToken = Token(TokenType.dateTime, SysTime(dt, msecs((time.get!Time).millis), UTC()).Tag);
                 }
                 else
                 {
@@ -1107,11 +1119,15 @@ private:
     }
     unittest
     {
+        import core.time : msecs;
         import std.datetime : TimeZone, UTC;
+
         // good
         assertTokenValue("2017-01-17T13:51:20Z", Token(TokenType.dateTime, SysTime(DateTime(2017, 01, 17, 13, 51, 20), UTC()).Tag));
         assertTokenValue("2009-11-09T15:39:00Z", Token(TokenType.dateTime, SysTime(DateTime(2009, 11, 09, 15, 39, 00), UTC()).Tag));
         assertTokenValue("1989-12-21T15:39:00Z UTC", Token(TokenType.dateTime, SysTime(DateTime(1989, 12, 21, 15, 39, 00), UTC()).Tag));
+        assertTokenValue("2015-03-31T18:06:41.956Z", Token(TokenType.dateTime, SysTime(DateTime(2015, 03, 31, 18, 06, 41), msecs(956), UTC()).Tag));
+        
         //TODO: implement timezone
         assertTokenValue("2010-08-31T08:45:00+02:00 Europe/Athens", Token(TokenType.dateTime, SysTime(DateTime(2010, 08, 31, 08, 45, 00)).Tag));
         // bad
