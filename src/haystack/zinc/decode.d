@@ -126,7 +126,12 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                     }
                     else
                     {
-                        element.rows = Rows(this);
+                        if (isWs)
+                            continue;
+                        if (isNl)
+                            state = ParserState.ok;
+                        else
+                            element.rows = Rows(this);
                     }
                     return;
 
@@ -599,7 +604,6 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         void popFront()
         {
-            int eogCnt = 0;
             for(; !empty; parser.lexer.popFront())
             {
                 if (parser.isWs)
@@ -1630,6 +1634,15 @@ unittest
         assert(empty.colNames[0] == "empty");
     }
 
+    {
+        auto str = `ver: "3.0"
+            empty
+            
+            `;
+        auto empty = ZincStringParser(str).asGrid;
+        assert(empty.length == 0);
+        assert(empty.colNames[0] == "empty");
+    }
 
     {
         auto str = `ver: "3.0" marker num:100
