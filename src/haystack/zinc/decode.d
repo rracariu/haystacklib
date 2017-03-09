@@ -607,7 +607,12 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
             for(; !empty; parser.lexer.popFront())
             {
                 if (parser.isWs)
-                    continue;
+                {
+                    if (!parser.lexer.empty)
+                        continue;
+                    else
+                        state = RowsState.ok;
+                }
                 switch (state)
                 {
                     case RowsState.tag:
@@ -1642,6 +1647,18 @@ unittest
         auto empty = ZincStringParser(str).asGrid;
         assert(empty.length == 0);
         assert(empty.colNames[0] == "empty");
+    }
+
+    {
+        auto str = `ver:"3.0"
+                    id, range
+                    @writePoint, "today"  `;
+        auto grid = ZincStringParser(str).asGrid;
+        assert(grid.hasCol("id"));
+        assert(grid.hasCol("range"));
+        assert(grid.length == 1);
+        assert(grid[0]["id"] == Ref("writePoint"));
+        assert(grid[0]["range"] == Str("today"));
     }
 
     {
