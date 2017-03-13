@@ -97,7 +97,7 @@ struct LookAhead(Range)
         import core.memory : GC;
         GC.addRange(buf.ptr, buf.length, typeid(buf));
         clearStash();
-        return cast(string)buf;
+        return cast(string) buf;
     }
     /// Clears current stash
     void clearStash()
