@@ -1,6 +1,6 @@
 # README #
 
-haystacklib - a D language implementation of the [project-haystack.org](http://project-haystack.org)
+haystacklib - a D language implementation of [project-haystack.org](http://project-haystack.org)
 
 ### What is this repository for? ###
 
