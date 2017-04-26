@@ -156,6 +156,27 @@ unittest
     assert(zinc(Str("_ \\ \" \n \r \t \u0011 _")) == `"_ \\ \" \n \r \t \u0011 _"`);
 }
 /**
+Encodes Coord as C(74.0000, -77.000)
+Expects an OutputRange as writer.
+Returns: the writter OutputRange
+*/
+void encode(R) (auto ref const(Coord) val, auto ref R writer)
+if (isOutputRange!(R, char)) 
+{ 
+    import std.format	: formattedWrite;
+    writer.put(`C(`);
+    formattedWrite(&writer, "%.6f", val.lat);
+    writer.put(',');
+    formattedWrite(&writer, "%.6f", val.lng);
+    writer.put(')');
+
+}
+unittest
+{
+    assert(Coord(37.545826,-77.449188).zinc() == "C(37.545826,-77.449188)");
+}
+
+/**
 Encodes XStr as Type("value").
 Expects an OutputRange as writer.
 Returns: the writter OutputRange
@@ -311,7 +332,7 @@ if (isOutputRange!(R, char))
         formattedWrite(&writer, "%s%02d:%02d", offset.hours > 0 ? '+' : '-', offset.hours, offset.minutes);
         import haystack.zinc.tzdata;
         string tzname = getTimeZoneName(val.timezone);
-        assert(tzname.length, "Time zone name can't be empty.");
+        assert(tzname.length, "Time zone name can't be empty." ~ val.timezone.stdName);
         writer.put(' ');
         writer.put(tzname);
     }   
@@ -355,6 +376,7 @@ if (isOutputRange!(R, char))
                     (Bool v) => v.encode(writer),
                     (Num v) => v.encode(writer),
                     (Str v) => v.encode(writer),
+                    (Coord v) => v.encode(writer),
                     (XStr v) => v.encode(writer),
                     (Uri v) => v.encode(writer),
                     (Ref v) => v.encode(writer),

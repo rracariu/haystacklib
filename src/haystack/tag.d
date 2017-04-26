@@ -23,6 +23,7 @@ enum TagType
     Num,
     Str,
     XStr,
+    Coord,
     Uri, 
     Ref, 
     Date, 
@@ -42,6 +43,7 @@ alias Tag = Algebraic!(Marker,
                        Num,
                        Str,
                        XStr,
+                       Coord,
                        Uri, 
                        Ref, 
                        Date, 
@@ -69,6 +71,7 @@ string toStr()(auto ref const(Tag) tag)
                                     (Bool v) => v.toString(),
                                     (Num v) => v.toString(),
                                     (Str v) => v.toString(),
+                                    (Coord v) => v.toString(),
                                     (XStr v) => v.toString(),
                                     (Uri v) => v.toString(),
                                     (Ref v) => v.toString(),
@@ -365,6 +368,33 @@ unittest
     assert(s != "");
     assert(Str("abc") == "abc");
     assert(Str("x") == Str("x"));
+}
+/************************************************************
+Latitude and Longitude global coordinates
+************************************************************/
+struct Coord
+{
+    double lat, lng;
+
+    bool opEquals()(auto ref const(Coord) o) const
+    {
+        import std.math : approxEqual;
+        return approxEqual(lat, o.lat, 1e-8, 1e-8) && approxEqual(lng, o.lng, 1e-8, 1e-8);
+    }
+
+    string toString() const
+    {
+        import std.conv : to;
+        return "C(" ~ to!string(lat) ~ ", " ~ to!string(lng) ~ ")";
+    }
+}
+unittest
+{
+    Coord c1 = Coord(37.545826, -77.449188);
+    Coord c2 = Coord(37.545826, -77.449187);
+    assert(c1.lat == 37.545826);
+    assert(c1.lng == -77.449188);
+    assert(c1 != c2);
 }
 /************************************************************
 Extended typed string which specifies a type name a string encoding

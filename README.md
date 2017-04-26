@@ -5,11 +5,11 @@ haystacklib - a D language implementation of [project-haystack.org](http://proje
 ### What is this repository for? ###
 
 * Provides haystack tags, zinc encoder/decoder, and filter support 
-* Version 0.5.2
+* Version 0.5.5
 
 ### How do I get set up? ###
 
-* Needs a D compiler ([DMD](http://dlang.org/download.html#dmd), [LDC](https://github.com/ldc-developers/ldc#installation)) with frontend version 2.0.73+
+* Needs a D compiler ([DMD](http://dlang.org/download.html#dmd), [LDC](https://github.com/ldc-developers/ldc#installation)) with frontend version 2.0.72+
 * Configuration:
 ```
 #!sh

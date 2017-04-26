@@ -92,6 +92,7 @@ struct Token
             || type == TokenType.date
             || type == TokenType.time
             || type == TokenType.dateTime
+            || type == TokenType.coord
             || type == TokenType.xstr;
     }
 
@@ -187,6 +188,8 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                 case TokenType.dateTime: // the date part can be parsed here, so try both
                     mixin(lexInstruction("DateTime", TokenType.time.stringof));
                 case TokenType.time:
+                    mixin(lexInstruction("Time", TokenType.coord.stringof));
+                case TokenType.coord:
                     mixin(lexInstruction("Time", TokenType.xstr.stringof));
                 case TokenType.xstr:
                     if (lexXStr())
@@ -350,6 +353,7 @@ private:
             }
             // more to lex
             input.stash();
+            input.popFront();
             input.save();
         }
         return false;
@@ -726,10 +730,15 @@ private:
             crtToken = Token(TokenType.number, tag(double.infinity));
             return true;
         }
-        else if (input.crtStash == "Na" && input.front == 'N')
+        else if (input.crtStash == "Na")
         {
-            crtToken = Token(TokenType.number, tag(double.nan));
-            return true;
+            input.clearStash();
+            if (input.front == 'N')
+            {
+                crtToken = Token(TokenType.number, tag(double.nan));
+                input.popFront();
+                return true;
+            }
         }
         return false;
     }
@@ -738,6 +747,7 @@ private:
         assertTokenValue("-INF", Token(TokenType.number, (-1 * double.infinity).tag));
         assertTokenValue("INF", Token(TokenType.number, (double.infinity).tag));
         assertTokenIsNan("NaN");
+        assertTokenIsNan("NaN,");
         assertTokenValue("100", Token(TokenType.number, 100.tag));
         assertTokenValue("-88", Token(TokenType.number, (-88).tag));
         assertTokenValue("-99.", Token(TokenType.number, (-99.0).tag));
@@ -1074,7 +1084,11 @@ private:
                                     return false; // invalid tz start
                                 }
                             }
-                            else if (lexAlpha || input.front == '/' || input.front == '-' || input.front == '+' ) // the rest of tz chars
+                            else if (lexAlpha 
+                                     || input.front == '/' 
+                                     || input.front == '_' 
+                                     || input.front == '-' 
+                                     || input.front == '+' ) // the rest of tz chars
                             {
                                 input.stash();
                             }
@@ -1128,11 +1142,78 @@ private:
         assertTokenValue("1989-12-21T15:39:00Z UTC", Token(TokenType.dateTime, SysTime(DateTime(1989, 12, 21, 15, 39, 00), UTC()).Tag));
         assertTokenValue("2015-03-31T18:06:41.956Z", Token(TokenType.dateTime, SysTime(DateTime(2015, 03, 31, 18, 06, 41), msecs(956), UTC()).Tag));
         
-        //TODO: implement timezone
-        assertTokenValue("2010-08-31T08:45:00+02:00 Europe/Athens", Token(TokenType.dateTime, SysTime(DateTime(2010, 08, 31, 08, 45, 00)).Tag));
+        import haystack.zinc.tzdata;
+        assertTokenValue("2010-08-31T08:45:00+02:00 Europe/Athens", Token(TokenType.dateTime, SysTime(DateTime(2010, 08, 31, 08, 45, 00), timeZone("Europe/Athens")).Tag));
+        assertTokenValue("2010-08-31T08:45:00-05:00 New_York", Token(TokenType.dateTime, SysTime(DateTime(2010, 08, 31, 08, 45, 00), timeZone("New_York")).Tag));
         // bad
         assertTokenEmpty("2009-11-09T");
         assertTokenEmpty("2009-11-09T4");
+    }
+
+    bool lexCoord()
+    {
+        double lat, lng;
+        enum State { c, p, lat, lng, done }
+        State state;
+        for(; !input.empty && state != State.done; input.popFront())
+        {
+            final switch (state)
+            {
+                case State.c:
+                    if (input.front == 'C')
+                    {
+                        input.stash();
+                        state++;
+                        continue;
+                    }
+                    return false;
+                
+                case State.p:
+                    if (input.front == '(')
+                    {
+                        input.stash();
+                        state++;
+                        continue;
+                    }
+                    return false;
+
+                case State.lat:
+                    if (!lexDigit && input.front != '-')
+                        return false;
+                    input.clearStash();
+                    if (!lexNumber())
+                        return false;
+                    if (input.front != ',')
+                        return false;
+                    lat = crtToken.data.val!Num;
+                    input.clearStash();
+                    state++;
+                    continue;
+
+                case State.lng:
+                    if (!lexNumber())
+                        return false;
+                    if (input.front != ')')
+                        return false;
+                    lng = crtToken.data.val!Num;
+                    state++;
+                    break;
+
+                case State.done:
+                    assert(false, "Invalid state");
+            }
+        }
+        crtToken = Token(TokenType.coord, Coord(lat, lng).Tag);
+        return true;
+    }
+    unittest
+    {
+        // good
+        assertTokenValue("C(37.545826,-77.449188)", Token(TokenType.coord, Coord(37.545826,-77.449188).Tag));
+        //assertTokenValue(`Massive("\n")`, Token(TokenType.xstr, XStr("Massive", "\n").Tag));
+        // bad
+        //assertTokenEmpty(`Xx(")`);
+        //assertTokenEmpty(`Yx(""`);
     }
 
     bool lexXStr()
@@ -1310,7 +1391,7 @@ unittest
 private void assertTokenValue(string data, Token value)
 {
     auto lex = ZincStringLexer(data);
-    assert(lex.front() == value);
+    assert(lex.front() == value, "Failed expecting: " ~ value.tag.toStr ~ " got: " ~ lex.front().tag.toStr);
 }
 
 // test if provided string data decodes to the provided Token type
