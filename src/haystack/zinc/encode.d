@@ -478,6 +478,7 @@ if (isOutputRange!(R, char))
     if (grid.length == 0)
     {
         writer.put("empty");
+        writer.put('\n');
         return;
     }
     auto cols = grid.colNames;

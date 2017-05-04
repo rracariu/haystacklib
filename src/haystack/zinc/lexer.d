@@ -1145,6 +1145,7 @@ private:
         import haystack.zinc.tzdata;
         assertTokenValue("2010-08-31T08:45:00+02:00 Europe/Athens", Token(TokenType.dateTime, SysTime(DateTime(2010, 08, 31, 08, 45, 00), timeZone("Europe/Athens")).Tag));
         assertTokenValue("2010-08-31T08:45:00-05:00 New_York", Token(TokenType.dateTime, SysTime(DateTime(2010, 08, 31, 08, 45, 00), timeZone("New_York")).Tag));
+        assertTokenValue("2010-08-31T08:45:00+02:00 Nicosia", Token(TokenType.dateTime, SysTime(DateTime(2010, 08, 31, 08, 45, 00), timeZone("Asia/Nicosia")).Tag));
         // bad
         assertTokenEmpty("2009-11-09T");
         assertTokenEmpty("2009-11-09T4");

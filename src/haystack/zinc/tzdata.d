@@ -11,6 +11,12 @@ module haystack.zinc.tzdata;
 import std.string : toUpper;
 import std.datetime : TimeZone, UTC;
 
+private string cityName(string fullName)
+{
+    import std.string : lastIndexOf;
+    return fullName[fullName.lastIndexOf('/') + 1 .. $];
+}
+
 version(Posix)
 {
     import std.datetime : PosixTimeZone;
@@ -589,9 +595,10 @@ version(Posix)
 
     static string getTimeZoneName(immutable(TimeZone) tz)
     {
-        return tz.name.length ? tz.name : tz.stdName;
+        return cityName(tz.name.length ? tz.name : tz.stdName);
     }
 }
+
 version (Windows)
 {
     import std.datetime : WindowsTimeZone, 
@@ -621,7 +628,7 @@ version (Windows)
         {
             auto list = conv.fromWindows[tz.stdName];
             if (list.length > 0)
-                return list[0];
+                return cityName(list[0]);
         }
         return "";
     }
@@ -638,8 +645,7 @@ version (Windows)
         {
             foreach(ref fullName; shortNameList)
             {
-                import std.string : lastIndexOf;
-                auto shortName = fullName[fullName.lastIndexOf('/') + 1 .. $];
+                auto shortName = cityName(fullName);
                 auto tzName = conv.toWindows[fullName][0];
                 shortNames[shortName] = WindowsTimeZone.getTimeZone(tzName);
             }
