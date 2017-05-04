@@ -599,7 +599,7 @@ unittest
 /**
 Get $(D Dict) property of type $(D T), or if property is missing $(D T.init) 
 */
-T val(T)(auto ref const(Dict) dict, string key)  if (Tag.allowed!T)
+T get(T)(auto ref const(Dict) dict, string key)  if (Tag.allowed!T)
 {
     if (dict.missing(key))
         return T.init;
@@ -608,7 +608,7 @@ T val(T)(auto ref const(Dict) dict, string key)  if (Tag.allowed!T)
 unittest
 {
     Dict d = ["val": Str("foo").tag];
-    assert(d.val!Str("val") == "foo");
+    assert(d.get!Str("val") == "foo");
 }
 /**
 Test if $(D Dict) has property of type $(D T) 
@@ -736,10 +736,16 @@ struct GridImpl(T)
         return _meta;
     }
 
-    /// This grid columns
+    /// This grid rows
     @property size_t length() const
     {
         return val.length;
+    }
+
+    /// True if the $(D Grid) had no meta and no rows
+    @property bool empty() const
+    {
+        return val.length == 0 && meta.length == 0;
     }
 
     const(T) opIndex(size_t index) const

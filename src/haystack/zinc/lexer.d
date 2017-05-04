@@ -190,7 +190,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                 case TokenType.time:
                     mixin(lexInstruction("Time", TokenType.coord.stringof));
                 case TokenType.coord:
-                    mixin(lexInstruction("Time", TokenType.xstr.stringof));
+                    mixin(lexInstruction("Coord", TokenType.xstr.stringof));
                 case TokenType.xstr:
                     if (lexXStr())
                         break loop;

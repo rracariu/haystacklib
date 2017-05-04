@@ -180,7 +180,7 @@ unittest
 
 /**
 Owns the type T memory ensuring that it is not copyable
-and that T constructed memory is freed and distroyed at end of scope.
+and that T constructed memory is freed and T is destroyed at end of scope.
 */
 struct Own(T)
 {
@@ -200,9 +200,11 @@ struct Own(T)
     {
         if (val !is null)
         {
-            T* tmp = val;
-            delete val;
-            free(tmp);
+            import std.traits;
+            static if (hasMember!(T, "__dtor"))
+                val.__dtor();
+            free(val);
+            destroy(val);
         }
     }
 
