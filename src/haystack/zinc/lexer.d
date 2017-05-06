@@ -1111,6 +1111,7 @@ private:
                 else
                 {
                     import haystack.zinc.tzdata;
+                    import std.stdio;
                     try
                     {
                         auto tz = timeZone(tzName);
@@ -1119,7 +1120,8 @@ private:
                     catch(Exception e)
                     {
                         import std.string : indexOf, removechars;
-                        auto tz = timeZone("Etc/GMT" ~ offset[0..offset.indexOf(':')].removechars("0"));
+                        immutable gmtTz = "Etc/GMT" ~ offset[0..offset.indexOf(':')].removechars("0");
+                        auto tz = timeZone(gmtTz);
                         crtToken = Token(TokenType.dateTime, SysTime(dt, tz).Tag);
                     }
                 }

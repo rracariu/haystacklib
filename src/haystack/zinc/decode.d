@@ -107,7 +107,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                             if (isNl)
                             {
                                 lexer.popFront();
-                                if (lexer.empty)
+                                if (isNl || lexer.empty)
                                     state = ParserState.ok;
                                 else
                                     element.rows = Rows(this);
@@ -1694,6 +1694,18 @@ unittest
         assert(grid.length == 1);
         auto x = grid[0]["col1"].val!Dict;
         assert(grid[0]["col1"] == ["foo": true.tag].tag);
+    }
+
+    {
+        auto str = `ver:"3.0"
+                    id
+                    @equip
+                    @site
+
+                    `;
+
+        auto grid = ZincStringParser(str).asGrid;
+        assert(grid.length == 2);
     }
 
     {

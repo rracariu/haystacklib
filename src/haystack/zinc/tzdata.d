@@ -576,11 +576,28 @@ version(Posix)
             "Samoa":"US/Samoa"
         ];
         shortNames = cast(immutable) tzNames;
+        import std.stdio;
+        try
+        {
+            if (PosixTimeZone.getInstalledTZNames().length == 0)
+            {
+                writeln("Warning, no timezone data detected! Falling back to UTC.");
+                hasTzData = false;
+            }
+            else
+                hasTzData = true;
+        }
+        catch(Exception e)
+        {
+            writeln("Warning, no timezone data detected! Falling back to UTC. Details: ", e);
+        }
     }
+    
+    static immutable bool hasTzData; 
 
     static immutable(TimeZone) timeZone(string name)
     {
-        if (name.toUpper == "UTC")
+        if (!hasTzData || name.toUpper == "UTC")
             return UTC();
         try
         {
@@ -588,8 +605,8 @@ version(Posix)
         }
         catch(Exception e)
         {
-            name = shortNames[name];
-            return PosixTimeZone.getTimeZone(name);
+           name = shortNames[name];
+           return PosixTimeZone.getTimeZone(name);
         }
     }
 

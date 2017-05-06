@@ -256,8 +256,7 @@ void encode(R) (auto ref const(Date) val, auto ref R writer)
 if (isOutputRange!(R, char)) 
 { 
     import std.format	: formattedWrite;
-    formattedWrite(&writer, "%02d-%02d-%02d", val.year, val.month, val.day);
-    
+    formattedWrite(&writer, "%02d-%02d-%02d", val.year, val.month, val.day);  
 }
 unittest
 {
@@ -304,7 +303,6 @@ if (isOutputRange!(R, char))
     writer.put('T');
     encode(val.timeOfDay, writer);
     writer.put('Z');
-    
 }
 /**
 Encodes SysTime as 2016-13-07T08:56:00-05:00 New_York.
@@ -317,12 +315,14 @@ if (isOutputRange!(R, char))
     import core.time;
     import std.datetime : UTC;
     import std.format	: formattedWrite;
+    import haystack.zinc.tzdata;
+
     encode(cast(Date)val, writer);
     writer.put('T');
     encode(cast(TimeOfDay)val, writer);
-    if (val.fracSecs > 0.msecs)
+    if (val.fracSecs.total!"nsecs" > 0)
         formattedWrite(&writer, ".%03d", val.fracSecs.total!"msecs");
-    if (val.timezone == UTC())
+    if (val.timezone == UTC() || getTimeZoneName(val.timezone) == "UTC")
     {
         writer.put('Z');
     }
@@ -330,7 +330,6 @@ if (isOutputRange!(R, char))
     {
         auto offset = val.utcOffset.split!("hours", "minutes")();
         formattedWrite(&writer, "%s%02d:%02d", offset.hours > 0 ? '+' : '-', offset.hours, offset.minutes);
-        import haystack.zinc.tzdata;
         string tzname = getTimeZoneName(val.timezone);
         assert(tzname.length, "Time zone name can't be empty." ~ val.timezone.stdName);
         writer.put(' ');
@@ -505,7 +504,7 @@ if (isOutputRange!(R, char))
 unittest
 {
     auto expect = "ver:\"3.0\"\n"
-                 ~"empty";
+                 ~"empty\n";
     auto empty = Grid([]);
     assert(empty.zinc() == expect);
     // grid of scalars
