@@ -1111,7 +1111,6 @@ private:
                 else
                 {
                     import haystack.zinc.tzdata;
-                    import std.stdio;
                     try
                     {
                         auto tz = timeZone(tzName);
