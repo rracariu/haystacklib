@@ -556,7 +556,7 @@ unittest
     assert(d == expect);
 }
 
-private string zinc(T)(auto ref const(T) t)
+string zinc(T)(auto ref const(T) t)
 {
     import std.array : appender;
     auto buf = appender!string();
