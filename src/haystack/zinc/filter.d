@@ -29,6 +29,9 @@ class FilterException : Exception
 /// An empty resolver
 alias EmptyResolver = Path.emptyResolver!Dict;
 
+/// The default string based haystack filter
+alias HaystackFilter = Filter!string;
+
 /**
 Haystack filter
 */
@@ -98,7 +101,7 @@ private:
     {
         enum State { parens, has, missing, cmp }
         State state;
-        Path crtPath = Path("");
+        Path crtPath = void;
         for(; !lexer.empty; lexer.popFront())
         {
             eval:
@@ -481,12 +484,12 @@ struct Path
 {
     this (string name)
     {
-        this.segments = [name];
+        this._segments = [name];
     }
 
     this(string[] segments)
     {
-        this.segments = segments;
+        this._segments = segments;
     }
     @disable this();
 
@@ -507,8 +510,11 @@ struct Path
             return resolver(obj, this);
         }
     }
-
-    string[] segments;
+    
+    @property ref const(string[]) segments() const
+    {
+        return _segments;
+    }
 
     static Tag emptyResolver(Obj)(Obj, ref const(Path))
     {
@@ -522,6 +528,8 @@ private:
             return Tag.init;
         return dict.get(segments[0], Tag.init);
     }
+
+    string[] _segments;
 }
 unittest
 {
