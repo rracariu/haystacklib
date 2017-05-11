@@ -184,10 +184,13 @@ and that T constructed memory is freed and T is destroyed at end of scope.
 */
 struct Own(T)
 {
+    import core.memory : GC;
+
     this(Args...)(auto ref Args args)
     {
         auto mem = cast(T*) malloc(T.sizeof);
         val = emplace!T(mem, args);
+        GC.addRange(mem, T.sizeof);
     }
 
     this(Own!T o)
@@ -200,11 +203,12 @@ struct Own(T)
     {
         if (val !is null)
         {
-            import std.traits;
+            import std.traits : hasMember;
             static if (hasMember!(T, "__dtor"))
                 val.__dtor();
             free(val);
             destroy(val);
+            GC.removeRange(val);
         }
     }
 
@@ -214,6 +218,8 @@ struct Own(T)
     static Own!T make(Args...)(Args args)
     {
         import std.conv : to;
+        import std.algorithm : move;
+
         string ctorCall(size_t len) // ctfe
         {
             string call = "mem.__ctor(";
@@ -227,7 +233,6 @@ struct Own(T)
             return call;
         }
         auto mem = cast(T*) malloc(T.sizeof);
-        import std.algorithm : move;
         mixin(ctorCall(args.length));
         return Own!T(mem);
     }
@@ -251,6 +256,7 @@ private:
     this(T* ptr)
     {
         val = ptr;
+        GC.addRange(val, T.sizeof);
     }
 
     T* val = null;
