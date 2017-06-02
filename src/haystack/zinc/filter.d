@@ -690,22 +690,25 @@ struct Cmp
 
 private:
 
-    bool predicate(ref const(Tag) t) const
+    bool predicate(ref const(Tag) cmp) const
     {
+        if (cmp == Tag.init)
+            return false;
+
         final switch(op)
         {
             case Op.eq:
-                return equalTo(val, t);
+                return equalTo(val, cmp);
             case Op.notEq:
-                return !equalTo(val, t);
+                return !equalTo(val, cmp);
             case Op.less:
-                return lessThan(val, t);
+                return lessThan(cmp, val);
             case Op.lessOrEq:
-                return lessThan(val, t) || equalTo(val, t); 
+                return lessThan(cmp, val) || equalTo(val, cmp); 
             case Op.greater:
-                return greaterThan(val, t);
+                return greaterThan(cmp, val);
             case Op.greaterOrEq:
-                return greaterThan(val, t) || equalTo(val, t);
+                return greaterThan(cmp, val) || equalTo(val, cmp);
         }
     }
 
@@ -722,10 +725,10 @@ unittest
     cmp = Cmp("val", "!=", true.tag);
     assert(cmp.eval(["val": false.tag], &EmptyResolver));
 
-    cmp = Cmp("val", "<", false.tag);
+    cmp = Cmp("val", ">", false.tag);
     assert(cmp.eval(["val": true.tag], &EmptyResolver));
 
-    cmp = Cmp("val", "<", false.tag);
+    cmp = Cmp("val", ">", false.tag);
     assert(cmp.eval(["val": true.tag], &EmptyResolver));
 
     cmp = Cmp("val", "==", 1.tag);
@@ -734,13 +737,13 @@ unittest
     cmp = Cmp("val", "!=", 1.tag);
     assert(cmp.eval(["val": 0.tag], &EmptyResolver));
 
-    cmp = Cmp("val", "<", 100.tag);
+    cmp = Cmp("val", ">", 100.tag);
     assert(cmp.eval(["val": 999.tag], &EmptyResolver));
 
     cmp = Cmp("val", "<=", 100.tag);
     assert(cmp.eval(["val": 100.tag], &EmptyResolver));
 
-    cmp = Cmp("val", ">", 100.tag);
+    cmp = Cmp("val", "<", 100.tag);
     assert(cmp.eval(["val": 99.tag], &EmptyResolver));
 
     cmp = Cmp("val", ">=", 99.tag);
@@ -749,6 +752,6 @@ unittest
     cmp = Cmp("val", ">=", "foo".tag);
     assert(cmp.eval(["val": "foo".tag], &EmptyResolver));
 
-    cmp = Cmp("val", "<", "fo".tag);
+    cmp = Cmp("val", ">", "fo".tag);
     assert(cmp.eval(["val": "foo".tag], &EmptyResolver));
 }

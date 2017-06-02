@@ -690,6 +690,13 @@ struct GridImpl(T)
                         cl[col] = Col(col);
         this.columns = cl;
     }
+    
+    /// Create  $(D Grid) from const or immutable list of $(D Dict)
+    this(const(T[]) val, const(T) meta)
+    {
+        this(cast(T[])val, cast(T) meta);
+    }
+
     /// Create dict from const or immutable Dict
     this(const(T[]) val, T meta)
     {
