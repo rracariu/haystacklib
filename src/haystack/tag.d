@@ -596,6 +596,29 @@ unittest
     assert(d.id == Ref("id"));
     assert(["x": 1.tag].id == Ref.init);
 }
+
+/**
+Gets the 'dis' property for the $(D Dict).
+If the $(D Dict) has no 'id' or no 'dis' then an empty string is returned,
+if there is an 'id' property but without a 'dis' the 'id' value is returned. 
+*/
+string dis()(auto ref const(Dict) rec)
+{
+    if (rec.missing("id") 
+        || (rec["id"].peek!(const(Ref)) is null
+            && rec["id"].peek!(immutable(Ref)) is null
+                && rec["id"].peek!(Ref) is null))
+        return "";
+    auto id = rec["id"].get!(const(Ref));
+    return id.dis != "" ? id.dis : id.val;
+}
+unittest
+{
+    Dict d = ["id": Ref("id", "a dis").tag];
+    assert(d.dis == "a dis");
+    assert(["id": Ref("id").tag].dis == "id");
+    assert(["bad": 1.tag].dis == "");
+}
 /**
 Get $(D Dict) property of type $(D T), or if property is missing $(D T.init) 
 */
