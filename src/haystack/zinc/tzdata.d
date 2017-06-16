@@ -14,6 +14,8 @@ import std.datetime : TimeZone, UTC;
 private string cityName(string fullName)
 {
     import std.string : lastIndexOf;
+    if (fullName.toUpper == "STD")
+        return "UTC";
     return fullName[fullName.lastIndexOf('/') + 1 .. $];
 }
 
@@ -597,7 +599,7 @@ version(Posix)
 
     static immutable(TimeZone) timeZone(string name)
     {
-        if (!hasTzData || name.toUpper == "UTC")
+        if (!hasTzData || name.toUpper == "UTC" || name.toUpper == "STD")
             return UTC();
         try
         {

@@ -5,7 +5,7 @@ haystacklib - a D language implementation of [project-haystack.org](http://proje
 ### What is this repository for? ###
 
 * Provides haystack tags, zinc encoder/decoder, and filter support 
-* Version 0.5.6
+* Version 0.6.0
 
 ### How do I get set up? ###
 
