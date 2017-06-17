@@ -8,8 +8,8 @@ Authors:   Radu Racariu
 **/
 module haystack.zinc.encode;
 import haystack.tag;
+import std.traits           : isSomeChar;
 import std.range.primitives : isOutputRange;
-import std.traits : isSomeChar;
 
 ///////////////////////////////////////////////////////////////////
 //
@@ -36,7 +36,7 @@ Encodes Na as 'NA'.
 Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
-void encode(R) (const Na, auto ref R writer)
+void encode(R) (auto ref const(Na), auto ref R writer)
 if (isOutputRange!(R, char)) 
 { 
     writer.put("NA");
@@ -51,7 +51,7 @@ Encodes Bool as 'T' or 'F'.
 Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
-void encode(R) (const Bool val, auto ref R writer)
+void encode(R) (auto ref const(Bool) val, auto ref R writer)
 if (isOutputRange!(R, char)) 
 { 
     writer.put(val ? 'T' : 'F'); 
@@ -122,7 +122,7 @@ if (isOutputRange!(R, char))
             {
                 case '"':   writer.put(`\"`); break;
                 case '\\':  writer.put(`\\`); break;
-                case '$':  writer.put(`\$`); break;
+                case '$':   writer.put(`\$`); break;
                 default:
                     writer.put(c);
             }
@@ -370,22 +370,21 @@ if (isOutputRange!(R, char))
     import std.variant : visit;
     // encode current value
     value.visit!(
-                    (Marker v) => v.encode(writer),
-                    (Na v) => v.encode(writer),
-                    (Bool v) => v.encode(writer),
-                    (Num v) => v.encode(writer),
-                    (Str v) => v.encode(writer),
-                    (Coord v) => v.encode(writer),
-                    (XStr v) => v.encode(writer),
-                    (Uri v) => v.encode(writer),
-                    (Ref v) => v.encode(writer),
-                    (Date v) => v.encode(writer),
-                    (Time v) => v.encode(writer),
-                    (DateTime v) => v.encode(writer),
-                    (SysTime v) => v.encode(writer),
-                    (TagList v) => v.encode(writer),
-                    (Dict v) => v.encode(writer),
-                    (Grid v) => v.encode(writer)
+                    (ref Marker v)  => v.encode(writer),
+                    (ref Na v)      => v.encode(writer),
+                    (ref Bool v)    => v.encode(writer),
+                    (ref Num v)     => v.encode(writer),
+                    (ref Str v)     => v.encode(writer),
+                    (ref Coord v)   => v.encode(writer),
+                    (ref XStr v)    => v.encode(writer),
+                    (ref Uri v)     => v.encode(writer),
+                    (ref Ref v)     => v.encode(writer),
+                    (ref Date v)    => v.encode(writer),
+                    (ref Time v)    => v.encode(writer),
+                    (ref SysTime v) => v.encode(writer),
+                    (ref TagList v) => v.encode(writer),
+                    (ref Dict v)    => v.encode(writer),
+                    (ref Grid v)    => v.encode(writer)
                     )();
 
     if (isGrid)
@@ -556,28 +555,34 @@ unittest
     assert(d == expect);
 }
 
-string zinc(T)(auto ref const(T) t)
+/**
+Encodes any Tag type to Zinc using the $(D OutputRange)
+*/
+void zinc(T, R)(auto ref const(T) t, auto ref R writer)
+if (isOutputRange!(R, char)) 
 {
-    import std.array : appender;
-    auto buf = appender!string();
     static if (is(T == TimeOfDay))
     {
-        scope Tag tag = Time(t);
-        tag.encode(buf);
+        Time(t).encode(writer);
     }
     else static if (is(T == DateTime))
     {
         import std.datetime : UTC;
-        scope Tag tag = SysTime(t, UTC());
-        tag.encode(buf);
-    }
-    else static if (is(T == Grid))
-    {
-        t.encode(buf);
+        SysTime(t, UTC()).encode(writer);
     }
     else
     {
-        t.encode(buf);
+        t.encode(writer);
     }
+}
+
+/**
+Encodes any Tag type to a Zinc string
+*/
+string zinc(T)(auto ref const(T) t)
+{
+    import std.array : appender;
+    auto buf = appender!string();
+    zinc(t, buf);
     return buf.data;
 }

@@ -66,21 +66,21 @@ string toStr()(auto ref const(Tag) tag)
     Tag value = cast(Tag) tag;
     string tagVal = !value.hasValue ? "null" :
                                 value.tryVisit!(
-                                    (Marker v) => v.toString(),
-                                    (Na v) => v.toString(),
-                                    (Bool v) => v.toString(),
-                                    (Num v) => v.toString(),
-                                    (Str v) => v.toString(),
-                                    (Coord v) => v.toString(),
-                                    (XStr v) => v.toString(),
-                                    (Uri v) => v.toString(),
-                                    (Ref v) => v.toString(),
-                                    (Date v) => v.toString(),
-                                    (Time v) => v.toString(),
-                                    (DateTime v) => v.toString(),
-                                    (SysTime v) => v.toString(),
-                                    (TagList v) => v.toString(),
-                                    (Dict v) => v.toString(),
+                                    (ref Marker v) => v.toString(),
+                                    (ref Na v) => v.toString(),
+                                    (ref Bool v) => v.toString(),
+                                    (ref Num v) => v.toString(),
+                                    (ref Str v) => v.toString(),
+                                    (ref Coord v) => v.toString(),
+                                    (ref XStr v) => v.toString(),
+                                    (ref Uri v) => v.toString(),
+                                    (ref Ref v) => v.toString(),
+                                    (ref Date v) => v.toString(),
+                                    (ref Time v) => v.toString(),
+                                    (ref SysTime v) => v.toString(),
+                                    (ref TagList v) => v.toString(),
+                                    (ref Dict v) => v.toString(),
+                                    (ref Grid v) => v.toString(),
                                     )();
     string tagType = to!string(value.type);
     return format("%s(%s)", tagType[tagType.lastIndexOf('.') + 1..$], tagVal);
@@ -205,7 +205,12 @@ unittest
 Creates a Marker ($D Tag).
 Returns: a Marker Tag
 **/
-@property Tag marker() { return Tag(Marker()); }
+@property ref Tag marker()
+{
+    static Tag* _val;
+    if (_val is null) _val = new Tag(Marker());
+    return *_val;
+}
 unittest
 {
     assert(marker == Tag(Marker()));
@@ -214,7 +219,12 @@ unittest
 Creates a Na ($D Tag).
 Returns: a Na Tag
 **/
-@property Tag na() { return Tag(Na()); }
+@property ref Tag na()
+{
+    static Tag* _val;
+    if (_val is null) _val = new Tag(Na());
+    return *_val;
+}
 unittest
 {
     assert(na == Tag(Na()));
