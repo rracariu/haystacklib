@@ -172,7 +172,7 @@ private:
                             if (lexer.front.isScalar || lexer.front.type == TokenType.id)
                             {
                                 Tag tag = cast(Tag) lexer.front.tag;
-                                if (tag.peek!Num !is null)
+                                if (tag.peek!Num)
                                 {
                                     auto num = tag.get!Num; 
                                     if (num.isNaN || num.isINF)

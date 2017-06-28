@@ -363,7 +363,7 @@ if (isOutputRange!(R, char))
         writer.put('N');
         return;
     }
-    immutable isGrid = val.peek!(Grid) !is null;
+    immutable isGrid = val.peek!Grid !is null;
     if (isGrid)
         writer.put("<<\n");
     Tag value = cast(Tag) val;
@@ -434,7 +434,7 @@ if (isOutputRange!(R, char))
     foreach (name, ref value; val)
     {
         writer.put(name);
-        if (value.peek!(Marker) is null)
+        if (!value.peek!Marker)
         {
             writer.put(':');
             value.encode(writer);
