@@ -590,7 +590,7 @@ struct Has
 
     bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
-        return path.resolve(obj, resolver) != Tag.init;
+        return path.resolve(obj, resolver).hasValue;
     }
 
     @property Dict tags()
@@ -692,7 +692,7 @@ private:
 
     bool predicate(ref const(Tag) cmp) const
     {
-        if (cmp == Tag.init)
+        if (!cmp.hasValue)
             return false;
 
         final switch(op)

@@ -491,7 +491,7 @@ if (isOutputRange!(R, char))
     {
         foreach (size_t colCnt, col; cols)
         {
-            if (row.has(col) && row[col] != Tag.init)
+            if (row.has(col) && row[col].hasValue)
                 row[col].encode(writer);
             if (colCnt < cols.length - 1)
                 writer.put(',');
