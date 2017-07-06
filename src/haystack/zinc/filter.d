@@ -501,7 +501,8 @@ struct Path
                 return dictResolver(obj);
             else if (resolver !is null)
                 return resolver(obj, this);
-            else return Tag.init;
+            else 
+                return Tag.init;
         }
         else
         {
@@ -524,7 +525,7 @@ struct Path
 private:
     Tag dictResolver(const(Dict) dict) const
     {
-        if (segments == null || segments.length == 0 || segments[0].length == 0)
+        if (segments.length == 0 || segments[0].length == 0)
             return Tag.init;
         return dict.get(segments[0], Tag.init);
     }
