@@ -328,8 +328,9 @@ if (isOutputRange!(R, char))
     }
     else
     {
+        import std.math : abs;
         auto offset = val.utcOffset.split!("hours", "minutes")();
-        formattedWrite(&writer, "%s%02d:%02d", offset.hours > 0 ? '+' : '-', offset.hours, offset.minutes);
+        formattedWrite(&writer, "%s%02d:%02d", offset.hours > 0 ? "+" : "-", offset.hours.abs, offset.minutes);
         string tzname = getTimeZoneName(val.timezone);
         assert(tzname.length, "Time zone name can't be empty." ~ val.timezone.stdName);
         writer.put(' ');
@@ -339,12 +340,14 @@ if (isOutputRange!(R, char))
 unittest
 {
     import core.time;
-    assert(zinc(DateTime(Date(2016, 12, 7), Time(8, 56, 00))) == "2016-12-07T08:56:00Z");
-    auto e = SysTime(DateTime(Date(2016, 12, 7), Time(8, 56, 00)), 100.msecs).zinc();
-    import std.datetime : LocalTime;
     import haystack.zinc.tzdata;
-    string tzname = getTimeZoneName(LocalTime());
-    assert(e == "2016-12-07T08:56:00.100+02:00 " ~ tzname);
+    assert(zinc(DateTime(Date(2016, 12, 7), Time(8, 56, 00))) == "2016-12-07T08:56:00Z");
+    auto e = SysTime(DateTime(Date(2016, 12, 7), Time(8, 56, 00)), 100.msecs, timeZone("GMT+7")).zinc();
+    string tzname = getTimeZoneName(timeZone("GMT+7"));
+    assert(e == "2016-12-07T08:56:00.100-07:00 " ~ tzname);
+    e = SysTime(DateTime(Date(2016, 12, 7), Time(8, 56, 00)), 100.msecs, timeZone("GMT-7")).zinc();
+    tzname = getTimeZoneName(timeZone("GMT-7"));
+    assert(e == "2016-12-07T08:56:00.100+07:00 " ~ tzname);
 }
 /**
 Encodes any Tag as zinc.

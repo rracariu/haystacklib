@@ -641,11 +641,12 @@ version (Windows)
 
     static string getTimeZoneName(immutable(TimeZone) tz)
     {
-        if (tz.stdName == "Coordinated Universal Time")
+        immutable name = tz.stdName;
+        if (name == "Coordinated Universal Time")
             return "UTC";
-        if (tz.stdName in conv.fromWindows)
+        if (name in conv.fromWindows)
         {
-            auto list = conv.fromWindows[tz.stdName];
+            auto list = conv.fromWindows[name];
             if (list.length > 0)
                 return cityName(list[0]);
         }
