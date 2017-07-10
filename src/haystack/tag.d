@@ -35,7 +35,7 @@ enum TagType
 }
 
 /************************************************************
-Any hystack value type.
+Any haystack value type.
 ************************************************************/
 alias Tag = Algebraic!(Marker, 
                        Na, 
@@ -205,11 +205,9 @@ unittest
 Creates a Marker ($D Tag).
 Returns: a Marker Tag
 **/
-@property ref Tag marker()
+@property Tag marker()
 {
-    static Tag* _val;
-    if (_val is null) _val = new Tag(Marker());
-    return *_val;
+    return Tag(Marker());
 }
 unittest
 {
@@ -219,11 +217,9 @@ unittest
 Creates a Na ($D Tag).
 Returns: a Na Tag
 **/
-@property ref Tag na()
+@property Tag na()
 {
-    static Tag* _val;
-    if (_val is null) _val = new Tag(Na());
-    return *_val;
+    return Tag(Na());
 }
 unittest
 {
