@@ -7,9 +7,6 @@ License:   $(LINK2 www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 Authors:   Radu Racariu
 **/
 module haystack.zinc.util;
-import core.stdc.stdlib : malloc, free;
-import std.conv : emplace;
-import std.typecons : Proxy;
 import std.range.primitives : empty, front, popFront;
 /**
 A char range that allows look ahead buffering and can also collect a buffer of items
@@ -184,13 +181,27 @@ and that T constructed memory is freed and T is destroyed at end of scope.
 */
 struct Own(T)
 {
-    import core.memory : GC;
+    import core.memory      : GC;
+    import std.conv         : emplace;
+    import std.typecons     : Proxy;
+    import std.algorithm    : moveEmplace;
+    import std.traits       : hasIndirections;
+    import core.stdc.stdlib : malloc, free;
+
+    this(T t)
+    {
+        val = cast(T*) malloc(T.sizeof);
+        moveEmplace(t, *val);
+        static if (hasIndirections!T)
+            GC.addRange(val, T.sizeof);
+    }
 
     this(Args...)(auto ref Args args)
     {
-        auto mem = cast(T*) malloc(T.sizeof);
-        val = emplace!T(mem, args);
-        GC.addRange(mem, T.sizeof);
+        auto val = cast(T*) malloc(T.sizeof);
+        emplace!T(val, args);
+        static if (hasIndirections!T)
+            GC.addRange(val, T.sizeof);
     }
 
     this(Own!T o)
@@ -207,8 +218,8 @@ struct Own(T)
             static if (hasMember!(T, "__dtor"))
                 val.__dtor();
             free(val);
-            destroy(val);
             GC.removeRange(val);
+            destroy(val);
         }
     }
 
@@ -237,12 +248,22 @@ struct Own(T)
         return Own!T(mem);
     }
 
+    void opAssign(T)(T o)
+    {
+        destroy(this);
+        val = cast(T*) malloc(T.sizeof);
+        moveEmplace(o, *val);
+        static if (hasIndirections!T)
+            GC.addRange(val, T.sizeof);
+    }
+
     void opAssign(T)(Own!T o)
     {
         destroy(this);
         val = o.val;
         o.val = null;
     }
+    
     
     @property bool isNull()
     {
@@ -256,7 +277,8 @@ private:
     this(T* ptr)
     {
         val = ptr;
-        GC.addRange(val, T.sizeof);
+        static if (hasIndirections!T)
+            GC.addRange(val, T.sizeof);
     }
 
     T* val = null;
