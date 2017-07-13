@@ -68,12 +68,12 @@ private:
             {
                 lexer.popFront();
                 auto b = parseOr(lexer);
-                return Or(move(a), Own!Or.make(move(b.a), move(b.b)));
+                return Or(move(a), move(b));
             }
             else
                 break;
         }
-        return Or(move(a), Own!Or());
+        return Or(move(a));
     }
 
     // parse and expression
@@ -88,12 +88,12 @@ private:
             {
                 lexer.popFront();
                 auto b = parseAnd(lexer);
-                return And(move(a), Own!And.make(move(b.a), move(b.b)));
+                return And(move(a), move(b));
             }
             else
                 break;
         }
-        return And(move(a), Own!And());
+        return And(move(a));
     }
 
     // parse a term
@@ -338,7 +338,12 @@ struct Or
     And a;
     Own!Or b;
 
-    this(And a, Own!Or b)
+    this(And a)
+    {
+        this.a = move(a);
+    }
+
+    this(And a, Or b)
     {
         this.a = move(a);
         this.b = move(b);
@@ -363,7 +368,12 @@ struct And
     Term a;
     Own!And b;
 
-    this(Term a, Own!And b)
+    this(Term a)
+    {
+        this.a = move(a);
+    }
+
+    this(Term a, And b)
     {
         this.a = move(a);
         this.b = move(b);
@@ -409,7 +419,7 @@ struct Term
     static Term makeOr(Or or)
     {
         auto term = Term(Type.or);
-        term.or = Own!Or.make(move(or.a), move(or.b));
+        term.or = move(or);
         return term;
     }
 
@@ -466,12 +476,12 @@ private:
     @disable this();
     @disable this(this);
 
-    Own!Or or = void;
     union
     {
-        Has has = void;
+        Own!Or or       = void;
+        Has has         = void;
         Missing missing = void;
-        Cmp cmp = void;
+        Cmp cmp         = void;
     }
 }
 
@@ -699,17 +709,17 @@ private:
         final switch(op)
         {
             case Op.eq:
-                return equalTo(val, cmp);
+                return equalTo(cmp, val);
             case Op.notEq:
-                return !equalTo(val, cmp);
+                return !equalTo(cmp, val);
             case Op.less:
                 return lessThan(cmp, val);
             case Op.lessOrEq:
-                return lessThan(cmp, val) || equalTo(val, cmp); 
+                return lessThan(cmp, val) || equalTo(cmp, val); 
             case Op.greater:
                 return greaterThan(cmp, val);
             case Op.greaterOrEq:
-                return greaterThan(cmp, val) || equalTo(val, cmp);
+                return greaterThan(cmp, val) || equalTo(cmp, val);
         }
     }
 
