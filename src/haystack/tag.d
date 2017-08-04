@@ -656,7 +656,7 @@ unittest
     assert(d.has!Num("num"));
 }
 
-string toString()(auto const ref Dict dict)
+string toString()(auto ref const(Dict) dict)
 {
     import std.array : appender;
 
@@ -675,7 +675,7 @@ string toString()(auto const ref Dict dict)
     return buf.data;
 }
 
-string toString()(auto const ref TagList list)
+string toString()(auto ref const(TagList) list)
 {
     import std.array : appender;
 
@@ -732,17 +732,29 @@ struct GridImpl(T)
         this(cast(T[])val, meta);
     }
 
-    /// Create a $(D Grid) from a list of $(D Dict) and a meta data $(D Dict)
-    this(T[] val, Col[] cols, T meta = T.init, string ver = "3.0")
+    /// Create a $(D Grid) from a list of $(D Dict)s, a list of columns, and a meta data $(D Dict)
+    this(const(T[]) val, Col[] cols, T meta = T.init, string ver = "3.0")
     {
         //this.ver = ver;
         this._meta = meta;
-        this.val = val;
+        this.val = cast(T[]) val;
         Col[string] cl;
         foreach(ref col; cols)
             cl[col.dis] = col;
         this.columns = cl;
         this.ver = ver;
+    }
+
+    /// Create a $(D Grid) from a list of $(D Dict)s, a list of column names, and a meta data $(D Dict)
+    this(const(T[]) val, string[] colsNames, T meta = T.init, string ver = "3.0")
+    {
+        this._meta  = meta;
+        this.val    = cast(T[]) val;
+        Col[string] cols;
+        foreach(colName; colsNames)
+            cols[colName] = Col(colName);
+        this.columns    = cols;
+        this.ver        = ver;
     }
 
     /// This grid columns
@@ -830,31 +842,30 @@ struct GridImpl(T)
            this.meta = meta;
        }
    }
-    string ver = "3.0";
+   string ver = "3.0";
 
-    string toString() const
-    {
-        import std.array : appender;
-        auto buf = appender!(string)();
-        buf.put("<\n");
-        buf.put("ver: ");
-        buf.put(ver);
-        buf.put('\n');
-        buf.put("meta: ");
-        buf.put((cast(Dict) meta).toString);
-        buf.put('\n');
-        buf.put("[\n");
-        foreach (i, ref row; val)
-        {
-            Dict rec = cast(Dict) row;
-            buf.put(rec.toString());
-            if (i < val.length - 1)
-                buf.put(',');
-            buf.put('\n');
-        }
-        buf.put(']');
-        buf.put(">\n");
-        return buf.data;
+   string toString() const
+   {
+       import std.array : appender;
+       auto buf = appender!(string)();
+       buf.put("<\n");
+       buf.put("ver: ");
+       buf.put(ver);
+       buf.put('\n');
+       buf.put("meta: ");
+       buf.put((cast(Dict) meta).toString);
+       buf.put('\n');
+       buf.put("[\n");
+       foreach (i, row; val)
+       {
+           buf.put((cast(Dict) row).toString());
+           if (i < val.length - 1)
+               buf.put(',');
+           buf.put('\n');
+       }
+       buf.put(']');
+       buf.put(">\n");
+       return buf.data;
     }
 
 private:

@@ -505,7 +505,14 @@ struct Path
 
     Tag resolve(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
-        static if (is(Obj : Dict) || is(Obj : const(Dict)))
+        import std.traits : Unqual, isAssociativeArray, KeyType, ValueType;
+
+        static if (isAssociativeArray!Obj)
+            alias Type = Unqual!(ValueType!Obj)[Unqual!(KeyType!Obj)];
+        else
+            alias Type = Unqual!Obj;
+        
+        static if (is(Type : Dict))
         {
             if (segments.length == 1)
                 return dictResolver(obj);
@@ -516,7 +523,7 @@ struct Path
         }
         else
         {
-            if (segments == null || segments.length == 0 || segments[0].length == 0)
+            if (segments.length == 0 || segments[0].length == 0)
                 return Tag.init;
             return resolver(obj, this);
         }

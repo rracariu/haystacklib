@@ -179,7 +179,7 @@ unittest
 Owns the type T memory ensuring that it is not copyable
 and that T constructed memory is freed and T is destroyed at end of scope.
 */
-struct Own(T)
+struct Own(T) if (is(T == struct))
 {
     import core.memory      : GC;
     import std.conv         : emplace;
@@ -190,103 +190,64 @@ struct Own(T)
 
     this(T t)
     {
-        val = cast(T*) malloc(T.sizeof);
-        moveEmplace(t, *val);
+        this.val = cast(T*) malloc(T.sizeof);
+        moveEmplace(t, *this.val);
         static if (hasIndirections!T)
-            GC.addRange(val, T.sizeof);
+            GC.addRange(this.val, T.sizeof);
     }
 
     this(Args...)(auto ref Args args)
     {
-        auto val = cast(T*) malloc(T.sizeof);
-        emplace!T(val, args);
+        this.val = cast(T*) malloc(T.sizeof);
+        emplace(this.val, args);
         static if (hasIndirections!T)
-            GC.addRange(val, T.sizeof);
-    }
-
-    this(Own!T o)
-    {
-        val = o.val;
-        o.val = null;
+            GC.addRange(this.val, T.sizeof);
     }
 
     ~this()
     {
-        if (val !is null)
+        if (this.val !is null)
         {
             import std.traits : hasMember;
             static if (hasMember!(T, "__dtor"))
-                val.__dtor();
-            free(val);
-            GC.removeRange(val);
-            destroy(val);
+                this.val.__dtor();
+            GC.removeRange(this.val);
+            free(this.val);
+            destroy(this.val);
         }
-    }
-
-    /**
-    Construct using explicit move semantics
-    */
-    static Own!T make(Args...)(Args args)
-    {
-        import std.conv : to;
-        import std.algorithm : move;
-
-        string ctorCall(size_t len) // ctfe
-        {
-            string call = "mem.__ctor(";
-            for(size_t i = 0; i < len; i++)
-            {
-                call ~= "move(args[" ~ to!string(i) ~ "])";
-                if (i < len - 1)
-                    call ~= ", ";
-            }
-            call ~= ");";
-            return call;
-        }
-        auto mem = cast(T*) malloc(T.sizeof);
-        mixin(ctorCall(args.length));
-        return Own!T(mem);
     }
 
     void opAssign(T)(T o)
     {
         destroy(this);
-        val = cast(T*) malloc(T.sizeof);
-        moveEmplace(o, *val);
+        this.val = cast(T*) malloc(T.sizeof);
+        moveEmplace(o, *this.val);
         static if (hasIndirections!T)
-            GC.addRange(val, T.sizeof);
+            GC.addRange(this.val, T.sizeof);
     }
 
-    void opAssign(T)(Own!T o)
+    void opAssign(Own!T o)
     {
         destroy(this);
-        val = o.val;
+        this.val = o.val;
         o.val = null;
     }
     
-    
     @property bool isNull()
     {
-        return val is null; 
+        return this.val is null; 
     }
 
     mixin Proxy!val;
 
 private:
-
-    this(T* ptr)
-    {
-        val = ptr;
-        static if (hasIndirections!T)
-            GC.addRange(val, T.sizeof);
-    }
-
-    T* val = null;
+    T* val;
     @disable this(this);
 }
 
 unittest
 {
+    import std.algorithm : move;
     struct X
     {
         bool b;
@@ -296,11 +257,12 @@ unittest
     x = Own!X(true);
     assert(x.b);
     Own!X y = Own!X(true); 
-    import std.algorithm : move;
-    x = move(y);
+    x = y.move();
     assert(y.val is null);
-    auto z = Own!X(move(x));
-    assert(x.val is null);
+    x.b = false;
+    auto z = Own!X(*x.move());
+    assert(x.isNull);
+    assert(!z.b);
 
     int i;
     struct C
@@ -310,6 +272,9 @@ unittest
             ++i;
             ii = &i;
         }
+
+        @disable this();
+        @disable this(this);
         
         ~this()
         {
@@ -320,6 +285,7 @@ unittest
 
     {
         Own!C dd = Own!C(i);
+        auto c = dd.move();
     }
     assert(i == 0);
 }
