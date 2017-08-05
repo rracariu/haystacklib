@@ -656,6 +656,21 @@ unittest
     assert(d.has!Num("num"));
 }
 
+/**
+Test if $(D Dict) misses property of type $(D T) 
+*/
+bool missing(T)(auto ref const(Dict) dict, string key)  if (Tag.allowed!T)
+{
+    return !dict.has!T(key);
+}
+unittest
+{
+    Dict d = ["num": 1.tag];
+    assert(!d.missing!Num("num"));
+    assert(d.missing!Ref("num"));
+    assert(d.missing!Bool("foo"));
+}
+
 string toString()(auto ref const(Dict) dict)
 {
     import std.array : appender;
