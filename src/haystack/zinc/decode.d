@@ -197,9 +197,9 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
     private:
         union Value
         {
-            Header header = void;
+            Header header   = void;
             Columns columns = void;
-            Rows rows = void;
+            Rows rows       = void;
         }
         Value _value;
         @disable this(this);
@@ -213,8 +213,8 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         string ver;
         Dict gridMeta;
         import std.array : appender;
-        auto colList = appender!(Grid.Col[])();
-        auto rowsList = appender!(Dict[])();
+        auto colList    = appender!(Grid.Col[])();
+        auto rowsList   = appender!(Dict[])();
         for(; !empty; popFront)
         {
             auto el = &front();
@@ -383,8 +383,8 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         @disable this();
         @disable this(this);
 
-        Parser* parser = void;
-        Value value = void;
+        Parser* parser  = void;
+        Value value     = void;
         enum HeaderState { ver, tags, ok, fault }
         HeaderState state;
 
@@ -553,8 +553,8 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         @disable this();
         @disable this(this);
 
-        Parser* parser = void;
-        Value value = void;
+        Parser* parser  = void;
+        Value value     = void;
         enum ColumnsState { name, sep, tags, ok, fault }
         ColumnsState state;
     }
@@ -689,8 +689,8 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         @disable this();
         @disable this(this);
 
-        Parser* parser = void;
-        AnyTag value = void;
+        Parser* parser  = void;
+        AnyTag value    = void;
         enum RowsState { tag, sep, ok, fault }
         RowsState state;
     }
@@ -784,11 +784,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         Dict asDict()
         {
             Dict dict;
-            for(; !empty; popFront()) 
-            {
-                foreach (ref kv; front.asDict.byKeyValue)
-                    dict[kv.key] = kv.value;
-            }
+            asDict(dict);
             return dict;
         }
 
@@ -949,7 +945,8 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         {
             if (consume)
                 return [pair.name: pair.value.asTag];
-            return Dict.init;
+            else
+                return Dict.init;
         }
 
     private:
