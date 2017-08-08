@@ -587,14 +587,9 @@ unittest
 /**
 Gets the 'id' key for the $(D Dict). Returns a $(D Ref.init) otherwise
 */
-immutable(Ref) id()(auto ref const(Dict) rec)
+@property immutable(Ref) id(const(Dict) rec)
 {
-    if (rec.missing("id") 
-        || (rec["id"].peek!(const(Ref)) is null
-            && rec["id"].peek!(immutable(Ref)) is null
-            && rec["id"].peek!(Ref) is null))
-        return Ref.init;
-    return rec["id"].get!(const Ref);
+    return rec.get!Ref("id");
 }
 unittest
 {
