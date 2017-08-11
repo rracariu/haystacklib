@@ -54,6 +54,16 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         return or.eval(obj, resolver);
     }
 
+    size_t toHash() const nothrow
+    {
+        return or.toHash();
+    }
+
+    bool opEquals(ref const(Filter) other) const nothrow
+    {
+        return or == other.or;
+    }
+
 private:
     Or or; // start node
     // parse or expression
@@ -358,6 +368,18 @@ struct Or
             return a.eval(obj, resolver) || b.eval(obj, resolver);
         else return a.eval(obj, resolver);
     }
+    
+    size_t toHash() const nothrow @trusted
+    {
+        enum prime  = 31;
+        size_t hash = prime * a.toHash();
+        return prime * hash + (b.isNull ? 0 : b.toHash());
+    }
+
+    bool opEquals(ref const(Or) other) const nothrow
+    {
+        return a == other.a && b == other.b;
+    }
 }
 
 /**
@@ -392,6 +414,18 @@ struct And
         if (!(cast(And) this).b.isNull && b.isValid)
             return a.eval(obj, resolver) && b.eval(obj, resolver);
         else return a.eval(obj, resolver);
+    }
+
+    size_t toHash() const nothrow
+    {
+        enum prime  = 31;
+        size_t hash = prime * a.toHash();
+        return prime * hash + (b.isNull ? 0 : b.toHash());
+    }
+
+    bool opEquals(ref const(And) other) const nothrow
+    {
+        return a == other.a && b == other.b;
     }
 }
 
@@ -471,6 +505,43 @@ struct Term
         this.type = type;
     }
 
+    size_t toHash() const nothrow
+    {
+        final switch (type)
+        {
+            case Type.or:
+                return or.toHash();
+            case Type.has:
+                return has.toHash();
+            case Type.missing:
+                return missing.toHash();
+            case Type.cmp:
+                return cmp.toHash();
+            case Type.empty:
+                return 31;
+        }
+    }
+
+    bool opEquals(ref const(Term) other) const nothrow
+    {
+        if (other.type != type)
+            return false;
+
+        final switch (type)
+        {
+            case Type.or:
+                return or == other.or;
+            case Type.has:
+                return has == other.has;
+            case Type.missing:
+                return missing == other.missing;
+            case Type.cmp:
+                return cmp == other.cmp;
+            case Type.empty:
+                return true;
+        }
+    }
+
 private:
 
     @disable this();
@@ -537,6 +608,21 @@ struct Path
     static Tag emptyResolver(Obj)(Obj, ref const(Path))
     {
         return Tag.init;
+    }
+
+    size_t toHash() const nothrow
+    {
+        enum prime  = 31;
+        size_t hash = prime;
+        foreach (seg; _segments)
+            foreach (c; seg)
+                hash = (hash * prime) + c;
+        return hash;
+    }
+
+    bool opEquals(ref const(Path) other) const nothrow
+    {
+        return _segments == other._segments;
     }
     
 private:
@@ -615,6 +701,16 @@ struct Has
     {
         return [path.segments[0]: marker];
     }
+
+    size_t toHash() const nothrow
+    {
+        return 31 * path.toHash();
+    }
+
+    bool opEquals(ref const(Has) other) const nothrow
+    {
+        return path == other.path;
+    }
     
 private:
     Path path;
@@ -646,6 +742,7 @@ struct Missing
     {
         return !has.eval(obj, resolver);
     }
+
     alias has this;
     Has has;
 }
@@ -704,6 +801,25 @@ struct Cmp
                 return [path.segments[$ - 1]: Tag(t)];
         }
         return [path.segments[$]: marker];
+    }
+
+    size_t toHash() const nothrow
+    {
+        enum prime  = 31;
+        size_t hash = prime * path.toHash();
+        foreach (c; op)
+            hash = (hash * prime) + c;
+        return prime * hash + val.toHash();
+    }
+
+    bool opEquals(ref const(Cmp) other) const nothrow
+    {
+        if (path != other.path || op != other.op)
+            return false;
+        try
+            return val == other.val;
+        catch(Exception e)
+            return false;
     }
 
 private:

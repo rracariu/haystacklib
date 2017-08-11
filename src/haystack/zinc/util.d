@@ -233,7 +233,7 @@ struct Own(T) if (is(T == struct))
         o.val = null;
     }
     
-    @property bool isNull()
+    @property bool isNull() const
     {
         return this.val is null; 
     }
@@ -263,6 +263,11 @@ unittest
     auto z = Own!X(*x.move());
     assert(x.isNull);
     assert(!z.b);
+
+    Own!X w = true;
+    Own!X v;
+
+    assert(w != v);
 
     int i;
     struct C
