@@ -20,7 +20,7 @@ import haystack.zinc.lexer;
 /// Filter parsing exception
 class FilterException : Exception
 {
-    this(string msg)
+    immutable this(string msg)
     {
         super(msg);
     }
@@ -67,7 +67,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 private:
     Or or; // start node
     // parse or expression
-    Or parseOr(ref Lexer lexer)
+    Or parseOr(ref Lexer lexer, bool group = false)
     {
         auto a = parseAnd(lexer);
         for(; !lexer.empty; lexer.popFront())
@@ -77,11 +77,17 @@ private:
             if (lexer.front.isOf(TokenType.id, "or".tag))
             {
                 lexer.popFront();
-                auto b = parseOr(lexer);
+                auto b = parseOr(lexer, group);
                 return Or(move(a), move(b));
             }
+            else if (lexer.front.isChar && !group)
+            {
+                throw InvalidFilterException;
+            }
             else
+            {
                 break;
+            }
         }
         return Or(move(a));
     }
@@ -101,7 +107,9 @@ private:
                 return And(move(a), move(b));
             }
             else
+            {
                 break;
+            }
         }
         return And(move(a));
     }
@@ -122,13 +130,13 @@ private:
                 case State.parens:
                     if (!lexer.front.hasChr('('))
                     {
-                        state++;
+                        state   = State.has;
                         goto eval;
                     }
                     else
                     {
                         lexer.popFront();
-                        auto term = Term.makeOr(parseOr(lexer));
+                        auto term = Term.makeOr(parseOr(lexer, true));
                         if (!lexer.front.hasChr(')'))
                             throw InvalidFilterException;
                         lexer.popFront();
@@ -249,8 +257,6 @@ private:
         loop:
         for(; !lexer.empty; lexer.popFront())
         {
-            if (lexer.front.isWs)
-                continue;
             switch (state)
             {
                 case State.id:
@@ -286,7 +292,7 @@ private:
         return Path(buf.data);
     }
 
-    static immutable InvalidFilterException = cast(immutable) new FilterException("Invalid filter input.");
+    static InvalidFilterException = new immutable FilterException("Invalid filter input.");
 }
 
 unittest
@@ -306,6 +312,7 @@ unittest
 
     import std.exception : assertThrown;
     assertThrown(StrFilter("test = ").eval(["foo": marker], &EmptyResolver));
+    assertThrown(StrFilter("test('call')").eval(["null": marker], &EmptyResolver));
     
 
     filter = StrFilter("age == 6");
