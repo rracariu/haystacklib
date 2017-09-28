@@ -1220,61 +1220,51 @@ private:
 
     bool lexXStr()
     {
-        enum State { firstChar, opt, enc }
+        enum State { firstChar, opt, enc, done }
         State crtState;
         string type;
         string data;
+        loop:
         for(; !input.empty; input.popFront())
         {
             final switch (crtState)
             {
                 case State.firstChar:
-                    if (lexAlphaHi)
-                    {
-                        input.stash();
-                        crtState++;
-                    }
-                    else
-                    {
+                    if (!lexAlphaHi)
                         return false;
-                    }
+                    input.stash();
+                    crtState    = State.opt;
                     break;
 
                 case State.opt:
                     if (lexAlpha || lexDigit || input.front == '_')
-                    {
                         input.stash();
-                    }
                     else if (input.front == '(')
                     {
-                        type = input.commitStash();
-                        crtState++;
+                        type        = input.commitStash();
+                        crtState    = State.enc;
                     }
                     else
-                    {
                         return false;
-                    }
                     break;
 
                 case State.enc:
-                    if (lexStr()) // consumes the string
-                    {
-                        data = crtToken.data.get!Str;
-                        crtToken = Token.init;
-                        // check next char
-                        if (!input.empty && input.front == ')')
-                            break;
-                        else
-                            return false;
-                    }
-                    else
-                    {
+                    if (!lexStr()) // consumes the string
                         return false;
-                    }
+                    data = crtToken.data.get!Str;
+                    crtToken = Token.init;
+                    // check next char
+                    if (!input.empty && input.front == ')')
+                        crtState    = State.done;
+                    else
+                        return false;
+                    break;
+                    
+                case State.done:
+                    break loop;
             }
         }
-        if (crtState < State.enc)
-            return false;
+        assert(crtState == State.done);
         crtToken = Token(TokenType.xstr, XStr(type, data).Tag);
         return true;
     }
@@ -1283,6 +1273,7 @@ private:
         // good
         assertTokenValue(`FooBar("alabala")`, Token(TokenType.xstr, XStr("FooBar", "alabala").Tag));
         assertTokenValue(`Massive("\n")`, Token(TokenType.xstr, XStr("Massive", "\n").Tag));
+        assertTokenValue(`Bin("mimeType"),`, Token(TokenType.xstr, XStr("Bin", "mimeType").Tag));
         // bad
         assertTokenEmpty(`Xx(")`);
         assertTokenEmpty(`Yx(""`);
