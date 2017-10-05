@@ -330,6 +330,12 @@ struct Num
         return val == val.infinity || val == (-1) * val.infinity;
     }
 
+    @property T intVal(T : int)() const
+    {
+        import std.conv : to;
+        return to!T(val); 
+    }
+
     string toString() const
     {
         import std.conv : to;
@@ -621,7 +627,7 @@ unittest
     assert(["bad": 1.tag].dis == "");
 }
 /**
-Get $(D Dict) property of type $(D T), or if property is missing $(D T.init) 
+Get $(D Dict) property of type $(D T), or if property is missing $(D T.init)
 */
 T get(T)(auto ref const(Dict) dict, string key)  if (Tag.allowed!T)
 {
