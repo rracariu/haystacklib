@@ -330,7 +330,7 @@ struct Num
         return val == val.infinity || val == (-1) * val.infinity;
     }
 
-    @property T intVal(T : int)() const
+    @property T to(T)() const
     {
         import std.conv : to;
         return to!T(val); 
