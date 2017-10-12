@@ -18,7 +18,7 @@ import std.traits : isSomeChar;
 ///////////////////////////////////////////////////////////////////
 
 /// Types of tokens that the lexer can provide
-enum TokenType { id, null_, marker, na, bool_, ref_, str, uri, number, date, time, dateTime, coord, xstr, none = uint.max }
+enum TokenType { id, null_, marker, remove, na, bool_, ref_, str, uri, number, date, time, dateTime, coord, xstr, none = uint.max }
 
 /**
 The result of a Lexer action.
@@ -83,6 +83,7 @@ struct Token
     {
         return type == TokenType.null_
             || type == TokenType.marker
+            || type == TokenType.remove
             || type == TokenType.na
             || type == TokenType.bool_
             || type == TokenType.ref_
@@ -105,6 +106,8 @@ struct Token
             return tk.type == TokenType.null_;
         if (type == TokenType.marker)
             return tk.type == TokenType.marker;
+        if (type == TokenType.remove)
+            return tk.type == TokenType.remove;
         if (type == TokenType.na)
             return tk.type == TokenType.na;
         return type == tk.type && data == tk.data;
@@ -159,7 +162,9 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                 case TokenType.null_:
                     mixin(lexInstruction("Null", TokenType.marker.stringof));
                 case TokenType.marker:
-                    mixin(lexInstruction("Marker", TokenType.na.stringof));
+                    mixin(lexInstruction("Marker", TokenType.remove.stringof));
+                case TokenType.remove:
+                    mixin(lexInstruction("Remove", TokenType.na.stringof));
                 case TokenType.na:
                     mixin(lexInstruction("Na", TokenType.bool_.stringof));
                 case TokenType.bool_:
@@ -329,6 +334,32 @@ private:
         assertTokenValue("M|", Token(TokenType.marker));
         // bad
         assertTokenEmpty("Y");
+    }
+
+    bool lexRemove()
+    {
+        if (input.front == 'R')
+        {
+            input.stash();
+            input.popFront();
+            if (!input.empty && (lexAlpha || lexDigit || input.front == '_'))
+            {
+                input.save;
+                return false;
+            }
+            crtToken = Token(TokenType.remove, Tag.init);
+            return true;
+        }
+        return false;
+    }
+    unittest
+    {
+        // good
+        assertTokenValue("R", Token(TokenType.remove));
+        assertTokenValue("R ", Token(TokenType.remove));
+        assertTokenValue("R|", Token(TokenType.remove));
+        // bad
+        assertTokenEmpty("K");
     }
 
     bool lexNa()
@@ -1264,7 +1295,8 @@ private:
                     break loop;
             }
         }
-        assert(crtState == State.done);
+        if (crtState != State.done)
+            return false;
         crtToken = Token(TokenType.xstr, XStr(type, data).Tag);
         return true;
     }

@@ -1694,6 +1694,17 @@ unittest
     }
 
     {
+        auto str = `ver: "3.0"
+            somecol
+            R`;
+
+        auto grid = ZincStringParser(str).asGrid;
+        assert(grid.length == 1);
+        auto x = grid[0]["somecol"];
+        assert(!x.hasValue);
+    }
+
+    {
         auto str = `ver:"3.0"
                     id
                     @equip
