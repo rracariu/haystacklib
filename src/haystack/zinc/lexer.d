@@ -487,8 +487,10 @@ private:
 
     string lexChars(immutable char[] esc, immutable char[] escVal, char quoteChar = '"')
     {
-        import std.string : indexOf;
-        import std.utf : encode;
+        import std.format   : formattedRead;
+        import std.utf      : encode;
+        import std.string   : indexOf;
+
         bool hasTerm = false;
         if (input.front == quoteChar && !input.empty)
         {
@@ -516,7 +518,6 @@ private:
                             if (input.empty || !lexHexDigit)
                                 return null;
                             wchar v; 
-                            import std.format : formattedRead;
                             int count = input.formattedRead("%x", &v);
                             if (count)
                             {
@@ -570,6 +571,7 @@ private:
         assertTokenValue(`"a line\nsome\ttab"`, Token(TokenType.str, "a line\nsome\ttab".tag));
         assertTokenValue(`""`, Token(TokenType.str, "".tag));
         assertTokenValue(`"some unicode char: \u00E6"`, Token(TokenType.str, "some unicode char: æ".tag));
+        assertTokenValue(`"inline unicode char: 語"`, Token(TokenType.str, "inline unicode char: 語".tag));
         // bad
         assertTokenEmpty(`"fooo`);
         assertTokenEmpty(`"a bad \u"`);

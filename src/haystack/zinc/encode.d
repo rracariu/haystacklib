@@ -112,25 +112,18 @@ Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(Str) val, auto ref R writer)
 if (isOutputRange!(R, char)) 
-{ 
+{
+    import std.format : formattedWrite;
+
     writer.put(`"`);
     foreach (dchar c; val)
     {
-        if (c >= ' ' && c < 127)
+        if (c < ' ' || c == '"' || c == '\\')
         {
             switch (c)
             {
                 case '"':   writer.put(`\"`); break;
                 case '\\':  writer.put(`\\`); break;
-                case '$':   writer.put(`\$`); break;
-                default:
-                    writer.put(c);
-            }
-        }
-        else if (c < ' ' || c >= 127)
-        {
-            switch (c)
-            {
                 case '\b':  writer.put(`\b`); break;
                 case '\f':  writer.put(`\f`); break;
                 case '\n':  writer.put(`\n`); break;
@@ -138,22 +131,29 @@ if (isOutputRange!(R, char))
                 case '\t':  writer.put(`\t`); break;
                 default:
                     writer.put(`\u`);
-                    import std.format : formattedWrite;
                     formattedWrite(&writer, "%04x", c);
             }
         }
+        else if (c == '$')   
+        {
+            writer.put(`\$`);
+        }
+        else
+        {
+            writer.put(c);
+        }
     }
     writer.put(`"`);
-    
 }
 unittest
 {
     assert(zinc(Str("abc\n")) == `"abc\n"`);
     assert(zinc(Str("a\nb\tfoo")) == `"a\nb\tfoo"`);
-    assert(zinc(Str("\u0bae")) == `"\u0bae"`);
+    assert(zinc(Str("\u0bae")) == `"ம"`);
     assert(zinc(Str("\\\"")) == `"\\\""`);
     assert(zinc(Str("$")) == `"\$"`);
     assert(zinc(Str("_ \\ \" \n \r \t \u0011 _")) == `"_ \\ \" \n \r \t \u0011 _"`);
+    assert(zinc(Str("unicode char ש")) == `"unicode char ש"`);
 }
 /**
 Encodes Coord as C(74.0000, -77.000)

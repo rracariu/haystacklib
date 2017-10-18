@@ -7,16 +7,20 @@ License:   $(LINK2 www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 Authors:   Radu Racariu
 **/
 module haystack.zinc.util;
-import std.range.primitives : empty, front, popFront;
+import std.range.primitives :  empty, front, popFront, isInputRange;
 /**
 A char range that allows look ahead buffering and can also collect a buffer of items
 **/
-struct LookAhead(Range)
+struct LookAhead(Range) if (isInputRange!Range)
 {
-    this()(auto ref Range r)
+    import core.memory              : GC;
+    import std.utf                  : encode;
+    import std.internal.scopebuffer : ScopeBuffer;
+
+    this()(auto ref Range range)
     {
-        this.r = r;
-        clearStash();
+        this.range = range;
+        initStash();
     }
 
     ~this()
@@ -26,13 +30,13 @@ struct LookAhead(Range)
 
     @property bool empty()
     {
-        return r.empty && _scratchSlice.empty;
+        return range.empty && _scratchSlice.empty;
     }
     
     @property dchar front()
     {
         if (_scratchSlice.empty)
-            return r.front;
+            return range.front;
         return _scratchSlice.front;
     }
 
@@ -40,7 +44,7 @@ struct LookAhead(Range)
     {
         if (_scratchSlice.empty)
         {
-            r.popFront();
+            range.popFront();
             position++;
         }
         else
@@ -57,7 +61,7 @@ struct LookAhead(Range)
     /// Buffer current char
     void stash()
     {
-        stash(r.front);
+        stash(range.front);
     }
     /// Buffer a specific char
     void stash(dchar c)
@@ -65,14 +69,14 @@ struct LookAhead(Range)
         // stashing when there is an active look ahead buffer is a no op
         if (!_scratchSlice.empty)
             return;
-
         if (c <= 127)
+        {
             _scratchBuf.put(cast(char)c);
+        }
         else
         {
-            import std.utf : encode;
-            char[4] parts = void;
-            auto size = encode(parts, c);
+            char[4] parts   = void;
+            auto size       = encode(parts, c);
             foreach (i; 0..size)
                 _scratchBuf.put(parts[i]);
         }
@@ -91,16 +95,16 @@ struct LookAhead(Range)
     string commitStash()
     {
         auto buf = _scratchBuf[];
-        import core.memory : GC;
         GC.addRange(buf.ptr, buf.length, typeid(buf));
-        clearStash();
+        initStash();
         return cast(string) buf;
     }
+
     /// Clears current stash
     void clearStash()
     {
-        _scratchBuf = ScopeBuffer!char();
-        _scratchSlice = _scratchBuf[];
+        _scratchBuf.free();
+        initStash();
     }
     /// True if suplied string is found in the underlying Input range
     /// If not found, it allows the StashInput to continue iteration from
@@ -110,13 +114,13 @@ struct LookAhead(Range)
         if (s.empty)
             return false;
         size_t cnt;    
-        while(!r.empty)
+        while (!range.empty)
         {
-            if (cnt >= s.length || s[cnt] != r.front)
+            if (cnt >= s.length || s[cnt] != range.front)
                 break;
-            stash(r.front);
+            stash(range.front);
             cnt++;
-            r.popFront;
+            range.popFront;
         }
         bool found = (cnt == s.length);
         if (!found && hasStash) // keep look ahead buffer
@@ -128,25 +132,31 @@ struct LookAhead(Range)
 
     @property ref Range range()
     {
-        return r;
+        return _range;
     }
 
-    @property void range(ref Range r)
+    @property void range(ref Range range)
     {
-        this.r = r;
+        this._range = range;
     }
 
     // members
 private:
+
+    void initStash()
+    {
+        _scratchBuf     = ScopeBuffer!char();
+        _scratchSlice   = _scratchBuf[];
+    }
+
     // The underlying Input range that is iterated
-    Range r = void;
+    Range _range                    = void;
     // Char count
-    size_t position = -1;
+    size_t position                 = -1;
     // A slice on the stash, allows to create a look ahead buffer
-    char[] _scratchSlice;
+    char[] _scratchSlice            = void;
     // Scope buffer used for stashing items
-    import std.internal.scopebuffer;
-    ScopeBuffer!char _scratchBuf = void;
+    ScopeBuffer!char _scratchBuf    = void;
 }
 unittest
 {
@@ -179,7 +189,7 @@ unittest
 Owns the type T memory ensuring that it is not copyable
 and that T constructed memory is freed and T is destroyed at end of scope.
 */
-struct Own(T) if (is(T == struct))
+struct Own(T) if (is (T == struct))
 {
     import core.memory      : GC;
     import std.conv         : emplace;
