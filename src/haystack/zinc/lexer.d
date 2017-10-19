@@ -9,8 +9,8 @@ Authors:   Radu Racariu
 module haystack.zinc.lexer;
 import haystack.tag;
 import haystack.zinc.util;
-import std.range.primitives : empty, front, popFront, isInputRange, ElementEncodingType;
-import std.traits : isSomeChar;
+import std.range.primitives : isInputRange, ElementEncodingType;
+import std.traits           : isSomeChar;
 ///////////////////////////////////////////////////////////////////
 //
 // Zinc token lexer
@@ -151,7 +151,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
             return;
         }
         TokenType tryToken;
-        dchar startChr = input.front;
+        char startChr = input.front;
     loop:
         while (!input.empty)
         {
@@ -224,8 +224,8 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
     
     @property void range(ref Range r)
     {
-        input.range = r;
-        crtToken = Token(TokenType.none);
+        input.range     = r;
+        crtToken        = Token(TokenType.none);
         crtToken._chr = r.front;
     }
 
@@ -488,7 +488,6 @@ private:
     string lexChars(immutable char[] esc, immutable char[] escVal, char quoteChar = '"')
     {
         import std.format   : formattedRead;
-        import std.utf      : encode;
         import std.string   : indexOf;
 
         bool hasTerm = false;
@@ -517,11 +516,11 @@ private:
                             input.popFront();
                             if (input.empty || !lexHexDigit)
                                 return null;
-                            wchar v; 
-                            int count = input.formattedRead("%x", &v);
+                            dchar uni; 
+                            int count = input.formattedRead("%x", &uni);
                             if (count)
                             {
-                                input.stash(v);
+                                input.stash(uni);
                                 // we consumed all u's chars, no need to popFront
                                 goto loop;
                             }

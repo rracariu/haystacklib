@@ -7,11 +7,13 @@ License:   $(LINK2 www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 Authors:   Radu Racariu
 **/
 module haystack.zinc.util;
-import std.range.primitives :  empty, front, popFront, isInputRange;
+import std.range.primitives : isInputRange,
+                              ElementEncodingType;
 /**
 A char range that allows look ahead buffering and can also collect a buffer of items
 **/
-struct LookAhead(Range) if (isInputRange!Range)
+struct LookAhead(Range)
+if (isInputRange!Range && is(ElementEncodingType!Range : char))
 {
     import core.memory              : GC;
     import std.utf                  : encode;
@@ -19,7 +21,7 @@ struct LookAhead(Range) if (isInputRange!Range)
 
     this()(auto ref Range range)
     {
-        this.range = range;
+        this._range = range;
         initStash();
     }
 
@@ -30,27 +32,22 @@ struct LookAhead(Range) if (isInputRange!Range)
 
     @property bool empty()
     {
-        return range.empty && _scratchSlice.empty;
+        return _range.empty && _scratchSlice.empty;
     }
     
-    @property dchar front()
+    @property char front()
     {
         if (_scratchSlice.empty)
-            return range.front;
+            return _range.front;
         return _scratchSlice.front;
     }
 
     void popFront()
     {
         if (_scratchSlice.empty)
-        {
-            range.popFront();
-            position++;
-        }
+            _range.popFront();
         else
-        {
             _scratchSlice = _scratchSlice[1 .. _scratchSlice.length];
-        }
     }
     /// Save current stash as look ahead buffer
     void save()
@@ -61,25 +58,22 @@ struct LookAhead(Range) if (isInputRange!Range)
     /// Buffer current char
     void stash()
     {
-        stash(range.front);
+        // stashing when there is an active look ahead buffer is a no op
+        if (!_scratchSlice.empty)
+            return;
+        _scratchBuf.put(_range.front);
     }
-    /// Buffer a specific char
+    /// Buffer a wide char
     void stash(dchar c)
     {
         // stashing when there is an active look ahead buffer is a no op
         if (!_scratchSlice.empty)
             return;
-        if (c <= 127)
-        {
-            _scratchBuf.put(cast(char)c);
-        }
-        else
-        {
-            char[4] parts   = void;
-            auto size       = encode(parts, c);
-            foreach (i; 0..size)
-                _scratchBuf.put(parts[i]);
-        }
+        
+        char[4] parts   = void;
+        auto size       = encode(parts, c);
+        foreach (i; 0..size)
+            _scratchBuf.put(parts[i]);
     }
     /// Get the curent content of the stash
     @property const(char)[] crtStash()
@@ -114,13 +108,13 @@ struct LookAhead(Range) if (isInputRange!Range)
         if (s.empty)
             return false;
         size_t cnt;    
-        while (!range.empty)
+        while (!_range.empty)
         {
-            if (cnt >= s.length || s[cnt] != range.front)
+            if (cnt >= s.length || s[cnt] != _range.front)
                 break;
-            stash(range.front);
+            stash(_range.front);
             cnt++;
-            range.popFront;
+            _range.popFront;
         }
         bool found = (cnt == s.length);
         if (!found && hasStash) // keep look ahead buffer
@@ -151,10 +145,8 @@ private:
 
     // The underlying Input range that is iterated
     Range _range                    = void;
-    // Char count
-    size_t position                 = -1;
     // A slice on the stash, allows to create a look ahead buffer
-    char[] _scratchSlice            = void;
+    char[] _scratchSlice           = void;
     // Scope buffer used for stashing items
     ScopeBuffer!char _scratchBuf    = void;
 }
@@ -183,6 +175,35 @@ unittest
         assert(buf.front == '0' + i + 2);
         buf.popFront();
     }
+}
+
+///////////////////////////////////////////////////////////////
+//
+// Non decoding char range primitive
+//
+///////////////////////////////////////////////////////////////
+
+@property char front()(auto ref const(char[]) range)
+{
+    assert(!range.empty);
+    return range[0];
+}
+
+@property bool empty()(auto ref const(char[]) range)
+{
+    return !range.length;
+}
+
+@property void popFront(ref const(char)[] range)
+{
+    assert(!range.empty);
+    range = range[1..$];
+}
+
+@property void popFront(ref string range)
+{
+    assert(!range.empty);
+    range = range[1..$];
 }
 
 /**
