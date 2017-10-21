@@ -1,6 +1,12 @@
-# README #
+[![Build Status](https://travis-ci.org/rracariu/haystacklib.svg?branch=master)](https://travis-ci.org/rracariu/haystacklib)
+
+# haystacklib #
 
 haystacklib - a D language implementation of [project-haystack.org](http://project-haystack.org)
+
+Haystack specifies semantics for building automation components trough a tag taxonomy.
+
+This library implements the tag support and the encoder/decoder for the zinc format. 
 
 ### What is this repository for? ###
 
