@@ -1150,8 +1150,10 @@ private:
                     }
                     catch(Exception e)
                     {
-                        import std.string : indexOf, removechars;
-                        immutable gmtTz = "Etc/GMT" ~ offset[0..offset.indexOf(':')].removechars("0");
+                        import std.conv         : to;
+                        import std.algorithm    : filter;
+                        import std.string       : indexOf;
+                        immutable gmtTz = "Etc/GMT" ~ offset[0..offset.indexOf(':')].filter!(c => c != '0').to!string();
                         auto tz = timeZone(gmtTz);
                         crtToken = Token(TokenType.dateTime, SysTime(dt, tz).Tag);
                     }
