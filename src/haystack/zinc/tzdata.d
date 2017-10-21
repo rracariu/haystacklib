@@ -24,8 +24,8 @@ version(Posix)
     import std.datetime : PosixTimeZone;
     static immutable __gshared string[string] shortNames;
     shared static this()
-    { 
-        auto tzNames = 
+    {
+        auto tzNames =
         [
             "Abidjan":"Africa/Abidjan",
             "Accra":"Africa/Accra",
@@ -594,8 +594,8 @@ version(Posix)
             writeln("Warning, no timezone data detected! Falling back to UTC. Details: ", e);
         }
     }
-    
-    static immutable bool hasTzData; 
+
+    static immutable bool hasTzData;
 
     static immutable(TimeZone) timeZone(string name)
     {
@@ -620,10 +620,10 @@ version(Posix)
 
 version (Windows)
 {
-    import std.datetime : WindowsTimeZone, 
-                          parseTZConversions, 
+    import std.datetime : WindowsTimeZone,
+                          parseTZConversions,
                           TZConversions;
-    
+
     static immutable(TimeZone) timeZone(string name)
     {
         if (name.toUpper == "UTC")
@@ -653,10 +653,10 @@ version (Windows)
         return "";
     }
 
-    
+
     immutable static __gshared TZConversions conv;
     immutable static __gshared TimeZone[string] shortNames;
-    
+
     shared static this()
     {
         conv = parseTZConversions(windowsZones);
@@ -918,7 +918,7 @@ version (Windows)
         <mapZone other="Greenwich Standard Time" territory="ST" type="Africa/Sao_Tome"/>
         <mapZone other="Greenwich Standard Time" territory="TG" type="Africa/Lome"/>
         <!--
-        (UTC+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna 
+        (UTC+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna
         -->
         <mapZone other="W. Europe Standard Time" territory="001" type="Europe/Berlin"/>
         <mapZone other="W. Europe Standard Time" territory="AD" type="Europe/Andorra"/>
@@ -938,7 +938,7 @@ version (Windows)
         <mapZone other="W. Europe Standard Time" territory="SM" type="Europe/San_Marino"/>
         <mapZone other="W. Europe Standard Time" territory="VA" type="Europe/Vatican"/>
         <!--
-        (UTC+01:00) Belgrade, Bratislava, Budapest, Ljubljana, Prague 
+        (UTC+01:00) Belgrade, Bratislava, Budapest, Ljubljana, Prague
         -->
         <mapZone other="Central Europe Standard Time" territory="001" type="Europe/Budapest"/>
         <mapZone other="Central Europe Standard Time" territory="AL" type="Europe/Tirane"/>
@@ -1017,7 +1017,7 @@ version (Windows)
         <mapZone other="South Africa Standard Time" territory="ZW" type="Africa/Harare"/>
         <mapZone other="South Africa Standard Time" territory="ZZ" type="Etc/GMT-2"/>
         <!--
-        (UTC+02:00) Helsinki, Kyiv, Riga, Sofia, Tallinn, Vilnius 
+        (UTC+02:00) Helsinki, Kyiv, Riga, Sofia, Tallinn, Vilnius
         -->
         <mapZone other="FLE Standard Time" territory="001" type="Europe/Kiev"/>
         <mapZone other="FLE Standard Time" territory="AX" type="Europe/Mariehamn"/>

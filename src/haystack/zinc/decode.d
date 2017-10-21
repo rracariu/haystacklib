@@ -144,7 +144,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
     /*
     The atomic parts of a Grid.
-    It holds type and value information about header, columns, rows 
+    It holds type and value information about header, columns, rows
     */
     static struct Element
     {
@@ -204,7 +204,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         Value _value;
         @disable this(this);
     }
-    
+
     /**
     Parses the $(D InputRange) and constructs an in-memory $(D Grid)
     */
@@ -301,7 +301,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         struct Value
         {
             Type type;
-            union 
+            union
             {
                 string ver;
                 NameValueList tags;
@@ -330,7 +330,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                             continue;
                         if (!parseVer())
                             state = HeaderState.fault;
-                        else 
+                        else
                         {
                             value.type = Type.ver;
                             state++;
@@ -353,7 +353,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         else
                         {
                             value.type = Type.tags;
-                            auto tp = NameValueList(*parser); 
+                            auto tp = NameValueList(*parser);
                             move(tp, value.tags);
                         }
                         return;
@@ -453,7 +453,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         struct Value
         {
             Type type;
-            union 
+            union
             {
                 string name;
                 NameValueList tags;
@@ -483,7 +483,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                             continue;
                         if (!parser.expectToken(TokenType.id))
                             state = ColumnsState.fault;
-                        else 
+                        else
                         {
                             value.type = Type.name;
                             value.name = parser.token.value!Str;
@@ -523,7 +523,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         else
                         {
                             value.type = Type.tags;
-                            auto nv = NameValueList(*parser); 
+                            auto nv = NameValueList(*parser);
                             move(nv, value.tags);
                         }
                         return;
@@ -571,7 +571,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         {
             auto parser = Parser("col1 test,col2 bar:F");
             auto cols = Parser.Columns(parser); // pop col name
-            assert(cols.front.name == "col1"); 
+            assert(cols.front.name == "col1");
             cols.popFront; // pop col tags
             assert(cols.front.tags.asDict == ["test": marker]);
             cols.popFront; // pop col name
@@ -716,7 +716,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
     /// Components
     //////////////////////////////////////////
 
-    /// Decode a list of pair of tags 
+    /// Decode a list of pair of tags
     struct NameValueList
     {
         NameValue value = void;
@@ -774,7 +774,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         void asDict(ref Dict dict)
         {
-            for(; !empty; popFront()) 
+            for(; !empty; popFront())
             {
                 foreach (ref kv; front.asDict.byKeyValue)
                     dict[kv.key] = kv.value;
@@ -847,7 +847,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
     }
 
     //////////////////////////////////////////
-    /// Decode a pair of tags 
+    /// Decode a pair of tags
     //////////////////////////////////////////
     struct NameValue
     {
@@ -1210,13 +1210,13 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                                 state++;
                             }
                             return;
-                        
+
                         case TagListState.consume:
                             if (!val.consume())
                                 state = TagListState.fault;
                             state = TagListState.tag;
                             goto eval;
-                        
+
                     default:
                         break;
                 }
@@ -1233,7 +1233,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         {
             import std.array : appender;
             auto tagList = appender!(Tag[])();
-            for(; !empty; popFront()) 
+            for(; !empty; popFront())
             {
                 tagList.put(front.asTag);
             }
@@ -1251,7 +1251,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         }
         @disable this();
         @disable this(this);
-        
+
         Parser* parser = void;
         Own!AnyTag val;
         enum TagListState { begin, tag, consume, ok, fault }
@@ -1452,7 +1452,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         else
                         {
                             if (parser.isNl)
-                            {   
+                            {
                                 parser.lexer.popFront();
                                 state++;
                                 goto eval;
@@ -1472,7 +1472,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                             state++;
                         }
                         return;
-                    
+
                     case TagGridState.end:
                         if (val.state != ParserState.ok)
                         {
@@ -1570,7 +1570,7 @@ private:
     Element element;
 
     ///////////////////////////////////////////////////
-    // Implementation for parsing $(D Element)s 
+    // Implementation for parsing $(D Element)s
     ///////////////////////////////////////////////////
 
     /////////////////////////////////////
@@ -1639,7 +1639,7 @@ unittest
     {
         auto str = `ver: "3.0"
             empty
-            
+
             `;
         auto empty = ZincStringParser(str).asGrid;
         assert(empty.length == 0);
@@ -1788,7 +1788,7 @@ void dumpParser(string zinc)
         {
             for (; !el.rows.empty; el.rows.popFront())
             {
-                auto tag = &el.rows.front(); 
+                auto tag = &el.rows.front();
                 writeln("Grid element name: ", el.type);
                 writeln(tag.asTag.toStr);
             }

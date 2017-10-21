@@ -22,8 +22,8 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(Marker), auto ref R writer)
-if (isOutputRange!(R, char)) 
-{  
+if (isOutputRange!(R, char))
+{
     writer.put('M');
 }
 unittest
@@ -37,8 +37,8 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(Na), auto ref R writer)
-if (isOutputRange!(R, char)) 
-{ 
+if (isOutputRange!(R, char))
+{
     writer.put("NA");
 }
 unittest
@@ -52,10 +52,10 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(Bool) val, auto ref R writer)
-if (isOutputRange!(R, char)) 
-{ 
-    writer.put(val ? 'T' : 'F'); 
-    
+if (isOutputRange!(R, char))
+{
+    writer.put(val ? 'T' : 'F');
+
 }
 unittest
 {
@@ -70,9 +70,9 @@ Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(Num) value, auto ref R writer)
 if (isOutputRange!(R, char))
-{ 
-    import std.math		: isInfinity, isNaN;
-    import std.format	: formattedWrite;
+{
+    import std.math     : isInfinity, isNaN;
+    import std.format   : formattedWrite;
 
     if (isInfinity(cast(double)value))
     {
@@ -111,7 +111,7 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(Str) val, auto ref R writer)
-if (isOutputRange!(R, char)) 
+if (isOutputRange!(R, char))
 {
     import std.format : formattedWrite;
 
@@ -134,7 +134,7 @@ if (isOutputRange!(R, char))
                     formattedWrite(&writer, "%04x", c);
             }
         }
-        else if (c == '$')   
+        else if (c == '$')
         {
             writer.put(`\$`);
         }
@@ -161,9 +161,9 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(Coord) val, auto ref R writer)
-if (isOutputRange!(R, char)) 
-{ 
-    import std.format	: formattedWrite;
+if (isOutputRange!(R, char))
+{
+    import std.format   : formattedWrite;
     writer.put(`C(`);
     formattedWrite(&writer, "%.6f", val.lat);
     writer.put(',');
@@ -182,13 +182,13 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(XStr) val, auto ref R writer)
-if (isOutputRange!(R, char)) 
-{ 
+if (isOutputRange!(R, char))
+{
     writer.put(val.type);
     writer.put(`("`);
     writer.put(val.val);
     writer.put(`")`);
-    
+
 }
 unittest
 {
@@ -200,8 +200,8 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(Uri) val, auto ref R writer)
-if (isOutputRange!(R, char)) 
-{ 
+if (isOutputRange!(R, char))
+{
     writer.put("`");
     foreach (size_t i, dchar c; val.val)
     {
@@ -225,7 +225,7 @@ if (isOutputRange!(R, char))
         }
     }
     writer.put('`');
-    
+
 }
 unittest
 {
@@ -237,11 +237,11 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(Ref) val, auto ref R writer)
-if (isOutputRange!(R, char)) 
-{ 
+if (isOutputRange!(R, char))
+{
     writer.put('@');
     writer.put(val.val);
-    
+
 }
 unittest
 {
@@ -253,10 +253,10 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(Date) val, auto ref R writer)
-if (isOutputRange!(R, char)) 
-{ 
-    import std.format	: formattedWrite;
-    formattedWrite(&writer, "%02d-%02d-%02d", val.year, val.month, val.day);  
+if (isOutputRange!(R, char))
+{
+    import std.format   : formattedWrite;
+    formattedWrite(&writer, "%02d-%02d-%02d", val.year, val.month, val.day);
 }
 unittest
 {
@@ -268,21 +268,21 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(TimeOfDay) val, auto ref R writer)
-if (isOutputRange!(R, char)) 
-{ 
-    import std.format	: formattedWrite;
+if (isOutputRange!(R, char))
+{
+    import std.format   : formattedWrite;
     formattedWrite(&writer, "%02d:%02d:%02d", val.hour, val.minute, val.second);
-    
+
 }
 /// ditto
 void encode(R) (auto ref const(Time) val, auto ref R writer)
-if (isOutputRange!(R, char)) 
-{ 
-    import std.format	: formattedWrite;
+if (isOutputRange!(R, char))
+{
+    import std.format   : formattedWrite;
     encode(cast(TimeOfDay)val, writer);
     if (val.millis > 0)
         formattedWrite(&writer, ".%03d", val.millis);
-    
+
 }
 unittest
 {
@@ -297,8 +297,8 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(DateTime) val, auto ref R writer)
-if (isOutputRange!(R, char)) 
-{ 
+if (isOutputRange!(R, char))
+{
     encode(val.date, writer);
     writer.put('T');
     encode(val.timeOfDay, writer);
@@ -310,11 +310,11 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(SysTime) val, auto ref R writer)
-if (isOutputRange!(R, char)) 
-{ 
+if (isOutputRange!(R, char))
+{
     import core.time;
     import std.datetime : UTC;
-    import std.format	: formattedWrite;
+    import std.format   : formattedWrite;
     import haystack.zinc.tzdata;
 
     encode(cast(Date)val, writer);
@@ -335,7 +335,7 @@ if (isOutputRange!(R, char))
         assert(tzname.length, "Time zone name can't be empty." ~ val.timezone.stdName);
         writer.put(' ');
         writer.put(tzname);
-    }   
+    }
 }
 unittest
 {
@@ -355,8 +355,8 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(Tag) val, auto ref R writer)
-if (isOutputRange!(R, char)) 
-{ 
+if (isOutputRange!(R, char))
+{
     import std.variant  : VariantN, This;
     import std.traits   : fullyQualifiedName, moduleName;
 
@@ -392,7 +392,7 @@ if (isOutputRange!(R, char))
 
     if (isGrid)
         writer.put("\n>>");
-    
+
 }
 unittest
 {
@@ -406,8 +406,8 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(TagList) val, auto ref R writer)
-if (isOutputRange!(R, char)) 
-{ 
+if (isOutputRange!(R, char))
+{
     writer.put('[');
     foreach (size_t i, ref tag; val)
     {
@@ -416,7 +416,7 @@ if (isOutputRange!(R, char))
             writer.put(',');
     }
     writer.put(']');
-    
+
 }
 unittest
 {
@@ -428,9 +428,9 @@ Encodes Dict as  {dis:"Building" site area:35000ft²}.
 Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
-void encode(R) (auto ref const(Dict) val, auto ref R writer, bool useBraces = true) 
-if (isOutputRange!(R, char)) 
-{ 
+void encode(R) (auto ref const(Dict) val, auto ref R writer, bool useBraces = true)
+if (isOutputRange!(R, char))
+{
     if (useBraces)
         writer.put('{');
     size_t i = 0;
@@ -447,7 +447,7 @@ if (isOutputRange!(R, char))
     }
     if (useBraces)
         writer.put('}');
-    
+
 }
 unittest
 {
@@ -456,7 +456,7 @@ unittest
 }
 
 void encodeGridHeader(R)(auto ref const(Dict) meta, auto ref R writer)
-if (isOutputRange!(R, char)) 
+if (isOutputRange!(R, char))
 {
     writer.put(`ver:"3.0"`);
     if (meta.length > 0)
@@ -473,7 +473,7 @@ Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
 void encode(R) (auto ref const(Grid) grid, auto ref R writer)
-if (isOutputRange!(R, char)) 
+if (isOutputRange!(R, char))
 {
     encodeGridHeader(grid.meta, writer);
     if (grid.length == 0)
@@ -547,7 +547,7 @@ unittest
         ~"4,3\n"
         ~`>>,"grid"` ~ "\n"
         ~`"a scalar","scalar"`;
-    auto d = Grid(grid).zinc(); 
+    auto d = Grid(grid).zinc();
     assert(d == expect);
     // meta
     scope metagrid = Grid([["a":1.tag]], ["foo": marker()]);
@@ -562,7 +562,7 @@ unittest
 Encodes any Tag type to Zinc using the $(D OutputRange)
 */
 void zinc(T, R)(auto ref const(T) t, auto ref R writer)
-if (isOutputRange!(R, char)) 
+if (isOutputRange!(R, char))
 {
     static if (is(T == TimeOfDay))
     {

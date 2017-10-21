@@ -17,17 +17,17 @@ public import std.datetime  : SysTime;
 
 enum TagType
 {
-    Marker, 
-    Na, 
-    Bool, 
+    Marker,
+    Na,
+    Bool,
     Num,
     Str,
     XStr,
     Coord,
-    Uri, 
-    Ref, 
-    Date, 
-    Time, 
+    Uri,
+    Ref,
+    Date,
+    Time,
     DateTime,
     List,
     Dict,
@@ -37,17 +37,17 @@ enum TagType
 /************************************************************
 Any haystack value type.
 ************************************************************/
-alias Tag = Algebraic!(Marker, 
-                       Na, 
-                       Bool, 
+alias Tag = Algebraic!(Marker,
+                       Na,
+                       Bool,
                        Num,
                        Str,
                        XStr,
                        Coord,
-                       Uri, 
-                       Ref, 
-                       Date, 
-                       Time, 
+                       Uri,
+                       Ref,
+                       Date,
+                       Time,
                        SysTime,
                        This[], //  list of zero or more Tags
                        This[string], // Dict - an associated array of name/value tag pairs
@@ -87,7 +87,7 @@ string toStr()(auto ref const(Tag) tag)
 }
 
 unittest
-{ 
+{
     Tag v;
     assert(!v.hasValue);
     // marker type
@@ -123,7 +123,7 @@ unittest
     assert(v[0] == cast(Str)"aa");
     assert(v[1] == cast(Num)2);
 
-    // dict type 
+    // dict type
     Dict d;
     d["test"] = cast(Str)"aaa";
     v = d;
@@ -283,7 +283,7 @@ struct Bool
     alias val this;
     /// the value
     bool val;
-   
+
     string toString() const pure nothrow @nogc
     {
         return val ? "true" : "false";
@@ -333,7 +333,7 @@ struct Num
     @property T to(T)() const
     {
         import std.conv : to;
-        return to!T(val); 
+        return to!T(val);
     }
 
     string toString() const
@@ -365,7 +365,7 @@ struct Str
     alias val this; // implicit a string
     /// the value
     string val;
-    
+
     string toString() const pure nothrow
     {
         return `"` ~ val ~ `"`;
@@ -463,7 +463,7 @@ struct Ref
         this.val = id;
         this.dis = dis;
     }
-    
+
     /// constructs a Ref with a random UUID and an optional dis
     static immutable(Ref) gen(string dis = "")
     {
@@ -479,12 +479,12 @@ struct Ref
             return dis;
         return val;
     }
-    
+
     size_t toHash() pure const nothrow
     {
         return val.hashOf();
     }
-    
+
     bool opEquals()(auto ref const typeof(this) other) @safe pure const nothrow
     {
         return val == other.val;
@@ -502,14 +502,14 @@ unittest
     assert(Ref.gen("xx").display == "xx");
 }
 /************************************************************
-Holds an ISO 8601 time as hour, minute, seconds 
+Holds an ISO 8601 time as hour, minute, seconds
 and millisecs: 09:51:27.354
 ************************************************************/
 struct Time
 {
     TimeOfDay tod;
     int millis;
-    
+
     this(TimeOfDay tod, int millis = 0)
     {
         this.hour = tod.hour;
@@ -517,7 +517,7 @@ struct Time
         this.second = tod.second;
         this.millis = millis;
     }
-    
+
     this(int hour, int minute, int second, int millis = 0)
     {
         this.hour = hour;
@@ -526,7 +526,7 @@ struct Time
         this.millis = millis;
     }
 
-    invariant() 
+    invariant()
     {
         assert(hour >= 0 && hour <= 23);
         assert(minute >= 0 && minute <= 59);
@@ -607,11 +607,11 @@ unittest
 /**
 Gets the 'dis' property for the $(D Dict).
 If the $(D Dict) has no 'id' or no 'dis' then an empty string is returned,
-if there is an 'id' property but without a 'dis' the 'id' value is returned. 
+if there is an 'id' property but without a 'dis' the 'id' value is returned.
 */
 string dis()(auto ref const(Dict) rec)
 {
-    if (rec.missing("id") 
+    if (rec.missing("id")
         || (rec["id"].peek!(const(Ref)) is null
             && rec["id"].peek!(immutable(Ref)) is null
                 && rec["id"].peek!(Ref) is null))
@@ -641,7 +641,7 @@ unittest
     assert(d.get!Str("val") == "foo");
 }
 /**
-Test if $(D Dict) has property of type $(D T) 
+Test if $(D Dict) has property of type $(D T)
 */
 bool has(T)(auto ref const(Dict) dict, string key)  if (Tag.allowed!T)
 {
@@ -658,7 +658,7 @@ unittest
 }
 
 /**
-Test if $(D Dict) misses property of type $(D T) 
+Test if $(D Dict) misses property of type $(D T)
 */
 bool missing(T)(auto ref const(Dict) dict, string key)  if (Tag.allowed!T)
 {
@@ -735,7 +735,7 @@ struct GridImpl(T)
                         cl[col] = Col(col);
         this.columns = cl;
     }
-    
+
     /// Create  $(D Grid) from const or immutable list of $(D Dict)
     this(const(T[]) val, const(T) meta)
     {
@@ -816,26 +816,26 @@ struct GridImpl(T)
     {
         return val[index];
     }
-    
+
     int opApply(int delegate(ref immutable(T)) dg) const
     {
         int result = 0;
-        foreach (dict; cast(immutable)val) 
+        foreach (dict; cast(immutable)val)
         {
             result = dg(dict);
-            if (result) 
+            if (result)
                 break;
         }
         return result;
     }
 
-   int opApply(int delegate(ref size_t i, ref immutable(T)) dg) const 
+   int opApply(int delegate(ref size_t i, ref immutable(T)) dg) const
    {
        int result = 0;
-       foreach (i, dict; cast(immutable)val) 
+       foreach (i, dict; cast(immutable)val)
        {
            result = dg(i, dict);
-           if (result) 
+           if (result)
                break;
        }
        return result;
