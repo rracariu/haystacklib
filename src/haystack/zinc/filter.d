@@ -460,29 +460,29 @@ struct Term
     static Term makeOr(Or or)
     {
         auto term = Term(Type.or);
-        term.or = move(or);
+        term.val.or = move(or);
         return term;
     }
 
     static Term makeHas(Has has)
     {
-        auto t = Term(Type.has);
-        t.has = has;
-        return t;
+        auto term = Term(Type.has);
+        term.val.has = has;
+        return term;
     }
 
     static Term makeMissing(Missing missing)
     {
-        auto t = Term(Type.missing);
-        t.missing = missing;
-        return t;
+        auto term = Term(Type.missing);
+        term.val.missing = missing;
+        return term;
     }
 
     static Term makeCmp(Cmp cmp)
     {
-        auto t = Term(Type.cmp);
-        t.cmp = cmp;
-        return t;
+        auto term = Term(Type.cmp);
+        term.val.cmp = cmp;
+        return term;
     }
 
     static Term makeEmpty()
@@ -495,13 +495,13 @@ struct Term
         final switch (type)
         {
             case Type.or:
-                return or.eval(obj, resolver);
+                return val.or.eval(obj, resolver);
             case Type.has:
-                return has.eval(obj, resolver);
+                return val.has.eval(obj, resolver);
             case Type.missing:
-                return missing.eval(obj, resolver);
+                return val.missing.eval(obj, resolver);
             case Type.cmp:
-                return cmp.eval(obj, resolver);
+                return val.cmp.eval(obj, resolver);
             case Type.empty:
                 return false;
         }
@@ -517,13 +517,13 @@ struct Term
         final switch (type)
         {
             case Type.or:
-                return or.toHash();
+                return val.or.toHash();
             case Type.has:
-                return has.toHash();
+                return val.has.toHash();
             case Type.missing:
-                return missing.toHash();
+                return val.missing.toHash();
             case Type.cmp:
-                return cmp.toHash();
+                return val.cmp.toHash();
             case Type.empty:
                 return 31;
         }
@@ -537,15 +537,32 @@ struct Term
         final switch (type)
         {
             case Type.or:
-                return or == other.or;
+                return val.or == other.val.or;
             case Type.has:
-                return has == other.has;
+                return val.has == other.val.has;
             case Type.missing:
-                return missing == other.missing;
+                return val.missing == other.val.missing;
             case Type.cmp:
-                return cmp == other.cmp;
+                return val.cmp == other.val.cmp;
             case Type.empty:
                 return true;
+        }
+    }
+    
+    ~this()
+    {
+        final switch (type)
+        {
+            case Type.or:
+                val.or.destroy(); break;
+            case Type.has:
+                val.has.destroy(); break;
+            case Type.missing:
+                val.missing.destroy(); break;
+            case Type.cmp:
+                val.cmp.destroy(); break;
+            case Type.empty:
+                break;
         }
     }
 
@@ -554,13 +571,15 @@ private:
     @disable this();
     @disable this(this);
 
-    union
+    union Val
     {
         Own!Or or       = void;
         Has has         = void;
         Missing missing = void;
         Cmp cmp         = void;
     }
+
+    Val val = void;
 }
 
 /**

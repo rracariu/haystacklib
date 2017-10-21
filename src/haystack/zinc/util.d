@@ -221,18 +221,18 @@ struct Own(T) if (is (T == struct))
 
     this(T t)
     {
-        this.val = cast(T*) malloc(T.sizeof);
-        moveEmplace(t, *this.val);
+        val = cast(T*) malloc(T.sizeof);
+        moveEmplace(t, *val);
         static if (hasIndirections!T)
-            GC.addRange(this.val, T.sizeof);
+            GC.addRange(val, T.sizeof);
     }
 
     this(Args...)(auto ref Args args)
     {
-        this.val = cast(T*) malloc(T.sizeof);
-        emplace(this.val, args);
+        val = cast(T*) malloc(T.sizeof);
+        emplace(val, args);
         static if (hasIndirections!T)
-            GC.addRange(this.val, T.sizeof);
+            GC.addRange(val, T.sizeof);
     }
 
     ~this()
@@ -242,25 +242,25 @@ struct Own(T) if (is (T == struct))
             import std.traits : hasMember;
             static if (hasMember!(T, "__dtor"))
                 this.val.__dtor();
-            GC.removeRange(this.val);
-            free(this.val);
-            destroy(this.val);
+            free(val);
+            GC.removeRange(val);
+            destroy(val);
         }
     }
 
     void opAssign(T)(T o)
     {
         destroy(this);
-        this.val = cast(T*) malloc(T.sizeof);
-        moveEmplace(o, *this.val);
+        val = cast(T*) malloc(T.sizeof);
+        moveEmplace(o, *val);
         static if (hasIndirections!T)
-            GC.addRange(this.val, T.sizeof);
+            GC.addRange(val, T.sizeof);
     }
 
     void opAssign(Own!T o)
     {
         destroy(this);
-        this.val = o.val;
+        val = o.val;
         o.val = null;
     }
     
@@ -314,7 +314,8 @@ unittest
         
         ~this()
         {
-            --(*ii);
+            if (ii !is null)
+                --(*ii);
         }
         int* ii;
     }
@@ -322,6 +323,43 @@ unittest
     {
         Own!C dd = Own!C(i);
         auto c = dd.move();
+    }
+    assert(i == 0);
+
+    struct S
+    {
+        union U
+        {
+            Own!C oc;
+            C c;
+        }
+
+        U u = void;
+        enum Type { o, c }
+
+        Type type;
+
+        ~this()
+        {
+            if (type == Type.o)
+                destroy(u.oc);
+
+            if (type == Type.c)
+                destroy(u.c);
+        }
+    }
+
+    {
+        S s;
+        s.type  = S.Type.o;
+        s.u.oc   = Own!C(i);
+    }
+    assert(i == 0);
+
+    {
+        S s;
+        s.type  = S.Type.c;
+        s.u.c = C(i);
     }
     assert(i == 0);
 }
