@@ -55,6 +55,7 @@ if (isInputRange!Range && is(ElementEncodingType!Range : char))
         if (!_scratchBuf[].empty)
             _scratchSlice = _scratchBuf[0 .. $];
     }
+
     /// Buffer current char
     void stash()
     {
@@ -64,10 +65,10 @@ if (isInputRange!Range && is(ElementEncodingType!Range : char))
         _scratchBuf.put(_range.front);
     }
     /// Buffer a wide char
-    void stash(dchar c)
+    void stash(dchar c, bool override_ = false)
     {
         // stashing when there is an active look ahead buffer is a no op
-        if (!_scratchSlice.empty)
+        if (!override_ && !_scratchSlice.empty)
             return;
         
         char[4] parts   = void;
@@ -88,9 +89,19 @@ if (isInputRange!Range && is(ElementEncodingType!Range : char))
     /// Commit current stash to a string and re-init stash
     string commitStash()
     {
-        auto buf = _scratchBuf[];
-        GC.addRange(buf.ptr, buf.length, typeid(buf));
-        initStash();
+        char[] buf;
+        if (_scratchSlice.length)
+        {
+            buf = _scratchBuf[0.. $ - _scratchSlice.length].dup();
+            _scratchBuf.free();
+            _scratchBuf = ScopeBuffer!char();
+        }
+        else
+        {
+            buf = _scratchBuf[0..$]; 
+            GC.addRange(buf.ptr, buf.length, typeid(buf));
+            initStash();
+        }
         return cast(string) buf;
     }
 
@@ -103,23 +114,43 @@ if (isInputRange!Range && is(ElementEncodingType!Range : char))
     /// True if suplied string is found in the underlying Input range
     /// If not found, it allows the StashInput to continue iteration from
     /// the original position the Input range was when the call was performed.
-    bool find(string s)
+    bool find(string s, bool keepStash = false)
     {
+        import std.utf      : byChar; 
+        import std.range    : chain, refRange;
+
         if (s.empty)
             return false;
-        size_t cnt;    
-        while (!_range.empty)
+        // here because std version has some const issues
+        struct RefRange
         {
-            if (cnt >= s.length || s[cnt] != _range.front)
+            this(R* r) { this.r = r; }
+
+            @property bool empty() { return (*r).empty; }
+            @property auto front() { return (*r).front; }
+            void popFront() { (*r).popFront(); }
+            
+            alias R = typeof(_range);
+            R* r;
+        }
+        
+        auto temp   = _scratchSlice.byChar();
+        auto ror    = chain(refRange(&temp), RefRange(&_range));
+        size_t cnt;
+
+        while (!ror.empty)
+        {
+            if (cnt >= s.length || s[cnt] != ror.front)
                 break;
-            stash(_range.front);
+            if (temp.empty)
+                stash(ror.front, true);
             cnt++;
-            _range.popFront;
+            ror.popFront;
         }
         bool found = (cnt == s.length);
         if (!found && hasStash) // keep look ahead buffer
             save();
-        else // init stash buffer
+        else if (!keepStash) // init stash buffer
             clearStash();
         return found;
     }
@@ -175,6 +206,24 @@ unittest
         assert(buf.front == '0' + i + 2);
         buf.popFront();
     }
+
+    buf = Buf("abc");
+    assert(buf.front == 'a');
+    buf.stash();
+    buf.popFront();
+    buf.save();
+
+    assert(!buf.find("a23"));
+
+    assert(buf._scratchSlice == "a");
+    assert(buf._scratchBuf[] == "a");
+
+    assert(buf.find("abc", true));
+    assert(buf._scratchBuf[] == "abc");
+    
+    buf = Buf("zy亚");
+    assert(buf.find("zy亚", true));
+
 }
 
 ///////////////////////////////////////////////////////////////
@@ -241,7 +290,7 @@ struct Own(T) if (is (T == struct))
         {
             import std.traits : hasMember;
             static if (hasMember!(T, "__dtor"))
-                this.val.__dtor();
+                val.__dtor();
             free(val);
             GC.removeRange(val);
             destroy(val);

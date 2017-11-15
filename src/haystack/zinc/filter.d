@@ -47,7 +47,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
             throw InvalidFilterException;
         or = parseOr(lexer);
     }
-    @disable this(this);
+    @disable { this(); this(this); }
 
     bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
@@ -371,7 +371,7 @@ struct Or
     bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
         assert(a.isValid, "Invalid 'or' experssion.");
-        if (!(cast(Or) this).b.isNull)
+        if (!b.isNull)
             return a.eval(obj, resolver) || b.eval(obj, resolver);
         else return a.eval(obj, resolver);
     }
@@ -418,7 +418,7 @@ struct And
     bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
         assert(a.isValid, "Invalid 'and' expression.");
-        if (!(cast(And) this).b.isNull && b.isValid)
+        if (!b.isNull && b.isValid)
             return a.eval(obj, resolver) && b.eval(obj, resolver);
         else return a.eval(obj, resolver);
     }
@@ -441,13 +441,13 @@ A filter term
 */
 struct Term
 {
-    enum Type 
+    enum Type
     {
         or,
         has,
         missing,
         cmp,
-        empty = uint.max
+        empty = ubyte.max
     }
 
     Type type = Type.empty;
@@ -460,7 +460,7 @@ struct Term
     static Term makeOr(Or or)
     {
         auto term = Term(Type.or);
-        term.val.or = move(or);
+        term.val.or = or.move();
         return term;
     }
 

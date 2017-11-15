@@ -9,6 +9,7 @@ Authors:   Radu Racariu
 module haystack.zinc.lexer;
 import haystack.tag;
 import haystack.zinc.util;
+import std.ascii            : isLower, isUpper, isAlpha, isAlphaNum, isDigit, isHexDigit;
 import std.range.primitives : isInputRange, ElementEncodingType;
 import std.traits           : isSomeChar;
 ///////////////////////////////////////////////////////////////////
@@ -123,9 +124,10 @@ Lexes Zinc tokens from some char $(D InputRange)
 struct ZincLexer(Range) 
 if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 {
-    this(Range r)
+    this(Range r, int ver = 3)
     {
-        input = LookAhead!Range(r);
+        this.input  = LookAhead!Range(r);
+        this.ver    = ver;
         // set head of this range
         if (!r.empty)
             popFront();
@@ -143,6 +145,11 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         return crtToken;
     }
 
+    @property char cur()
+    {
+        return input.front;
+    }
+
     void popFront()
     {
         if (input.empty)
@@ -151,7 +158,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
             return;
         }
         TokenType tryToken;
-        char startChr = input.front;
+        char startChr = cur;
     loop:
         while (!input.empty)
         {
@@ -197,14 +204,16 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                 case TokenType.coord:
                     mixin(lexInstruction("Coord", TokenType.xstr.stringof));
                 case TokenType.xstr:
+                    if (ver < 3 && lexBin())
+                        break loop;
                     if (lexXStr())
                         break loop;
                      goto default;
                 default:
-                    if (!input.empty && input.front == '\r') // normalize nl
+                    if (!input.empty && cur == '\r') // normalize nl
                     {
                         input.popFront();
-                        startChr = input.front;
+                        startChr = cur;
                         continue loop;
                     }
                     crtToken = Token(TokenType.none);
@@ -229,11 +238,17 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         crtToken._chr = r.front;
     }
 
+    // zinc spec version
+    int ver = 3;
+
     // internals
 private:
+    
     @disable this();
     @disable this(this);
+
     bool isEmpty = false;
+
     // ctfe code gen for lexing a type
     static string lexInstruction(string tok, string next)
     {
@@ -253,7 +268,7 @@ private:
             final switch (crtState)
             {
                 case State.req: // required to start with lower case alpha
-                    if (lexAlphaLo())
+                    if (cur.isLower)
                     {
                         input.stash();
                         crtState++;
@@ -262,7 +277,7 @@ private:
                     return false;
 
                 case State.opt:
-                    if (lexAlphaLo() || lexAlphaHi() || lexDigit() || input.front == '_')
+                    if (cur.isAlphaNum || cur == '_')
                         input.stash();
                     else
                         break loop;
@@ -281,7 +296,7 @@ private:
 
     bool lexNull()
     {
-        if (input.front == 'N')
+        if (cur == 'N')
         {
             if (!input.empty) // probe if this has more
             {
@@ -289,7 +304,7 @@ private:
                 input.popFront();
             }
             if (input.empty 
-                || !(lexAlpha || lexDigit || input.front == '_')) // test for next token
+                || !(cur.isAlphaNum || cur == '_')) // test for next token
             {
                 crtToken = Token(TokenType.null_, Tag());
                 return true;
@@ -312,11 +327,11 @@ private:
 
     bool lexMarker()
     {
-        if (input.front == 'M')
+        if (cur == 'M')
         {
             input.stash();
             input.popFront();
-            if (!input.empty && (lexAlpha || lexDigit || input.front == '_'))
+            if (!input.empty && (cur.isAlphaNum || cur == '_'))
             {
                 input.save;
                 return false;
@@ -338,11 +353,11 @@ private:
 
     bool lexRemove()
     {
-        if (input.front == 'R')
+        if (cur == 'R')
         {
             input.stash();
             input.popFront();
-            if (!input.empty && (lexAlpha || lexDigit || input.front == '_'))
+            if (!input.empty && (cur.isAlphaNum || cur == '_'))
             {
                 input.save;
                 return false;
@@ -364,16 +379,16 @@ private:
 
     bool lexNa()
     {
-        if (input.front == 'N' && !input.empty)
+        if (cur == 'N' && !input.empty)
         {
             input.stash();
             input.popFront();
-            if (input.front == 'A')
+            if (cur == 'A')
             {
                 input.stash();
                 if (!input.empty)
                     input.popFront();
-                if (!input.empty && (lexAlpha || lexDigit || input.front == '_')) // test for posible XStr
+                if (!input.empty && (cur.isAlphaNum || cur == '_')) // test for posible XStr
                 {
                     input.stash();
                     input.save;
@@ -401,12 +416,12 @@ private:
 
     bool lexBool()
     {
-        if (input.front == 'T' || input.front == 'F')
+        if (cur == 'T' || cur == 'F')
         {
-            dchar val = input.front;
+            dchar val = cur;
             input.stash();
             input.popFront();
-            if (!input.empty && (lexAlpha || lexDigit || input.front == '_')) // test for posible XStr
+            if (!input.empty && (cur.isAlphaNum || cur == '_')) // test for posible XStr
             {
                 input.save;
                 return false;
@@ -431,17 +446,16 @@ private:
     {
         string val;
         string dis;
-        if (input.front == '@')
+        if (cur == '@')
         {
             for (input.popFront(); !input.empty; input.popFront())
             {
-                if (lexAlpha()
-                    || lexDigit()
-                    || input.front == '_' 
-                    || input.front == ':' 
-                    || input.front == '-' 
-                    || input.front == '.' 
-                    || input.front == '~')
+                if (cur.isAlphaNum
+                    || cur == '_' 
+                    || cur == ':' 
+                    || cur == '-' 
+                    || cur == '.' 
+                    || cur == '~')
                 {
                     input.stash();
                 }
@@ -491,30 +505,30 @@ private:
         import std.string   : indexOf;
 
         bool hasTerm = false;
-        if (input.front == quoteChar && !input.empty)
+        if (cur == quoteChar && !input.empty)
         {
             for (input.popFront(); !input.empty; input.popFront())
             {
             loop:
-                if (input.front == quoteChar) // found terminator
+                if (cur == quoteChar) // found terminator
                 {
                     hasTerm = true;
                     input.popFront();
                     break;
                 }
-                if (input.front >= ' ')
+                if (cur >= ' ')
                 {
-                    if (input.front == '\\')
+                    if (cur == '\\')
                     {
                         if (input.empty)
                             return null;
                         input.popFront();
-                        if (input.front == 'u')
+                        if (cur == 'u')
                         {
                             if (input.empty)
                                 return null;
                             input.popFront();
-                            if (input.empty || !lexHexDigit)
+                            if (input.empty || !cur.isHexDigit)
                                 return null;
                             dchar uni; 
                             int count = input.formattedRead("%x", &uni);
@@ -527,7 +541,7 @@ private:
                             else 
                                 return null;
                         }
-                        ptrdiff_t escPos = esc.indexOf(input.front);
+                        ptrdiff_t escPos = esc.indexOf(cur);
                         if (escPos != -1)
                             input.stash(escVal[escPos]);
                         else
@@ -601,7 +615,7 @@ private:
     {
         enum State {integral, fractional_digit, fractional, exp_sign, exp, unit}
         // test the optional sign
-        if (input.front == '-')
+        if (cur == '-')
         {
             if (input.empty)
                 return false;
@@ -609,14 +623,14 @@ private:
             input.popFront();
             if (input.empty)
                 return false;
-            if (!lexDigit() && input.find("INF"))
+            if (!cur.isDigit && input.find("INF"))
             {
                 crtToken = Token(TokenType.number, tag(-1 * double.infinity));
                 return true;
             }
         }
         // lex number parts
-        if (lexDigit())
+        if (cur.isDigit)
         {
             static double parseNum(const(char)[] chars, ref double val)
             {
@@ -635,20 +649,20 @@ private:
                 final switch (crtState)
                 {
                     case State.integral:
-                        if (lexDigit())
+                        if (cur.isDigit)
                         {
                             input.stash();
                         }
-                        else if (input.front == '_')
+                        else if (cur == '_')
                         {
                             continue;
                         }
-                        else if (input.front == '.')
+                        else if (cur == '.')
                         {
                             input.stash();
                             crtState = State.fractional_digit;
                         }
-                        else if (lexAlpha || input.front == '%' || input.front == '_' || input.front == '/' || input.front == '$' || input.front > 127)
+                        else if (cur.isAlpha || cur == '%' || cur == '_' || cur == '/' || cur == '$' || cur > 127)
                         {
                             parseNum(input.crtStash, value);
                             input.clearStash();
@@ -658,15 +672,15 @@ private:
                         else
                         {
                             // save current scratch buffer and try matching for date or time
-                            if (input.crtStash.length == 4 && input.front == '-'
-                                    || input.crtStash.length == 2 && input.front == ':')
+                            if (input.crtStash.length == 4 && cur == '-'
+                                    || input.crtStash.length == 2 && cur == ':')
                                 input.save();
                             break loop;
                         }
                         break;
 
                     case State.fractional_digit:
-                        if (lexDigit())
+                        if (cur.isDigit)
                         {
                             input.stash();
                             crtState = State.fractional;
@@ -678,20 +692,20 @@ private:
                         break;
 
                     case State.fractional:
-                        if (lexDigit())
+                        if (cur.isDigit)
                         {
                             input.stash();
                         }
-                        else if (input.front == '_')
+                        else if (cur == '_')
                         {
                             continue;
                         }
-                        else if (input.front == 'e' || input.front == 'E')
+                        else if (cur == 'e' || cur == 'E')
                         {    
                             input.stash();
                             crtState = State.exp_sign;
                         }
-                        else if (lexAlpha || input.front == '%' || input.front == '_' || input.front == '/' || input.front == '$' || input.front > 127)
+                        else if (cur.isAlpha || cur == '%' || cur == '_' || cur == '/' || cur == '$' || cur > 127)
                         {
                             parseNum(input.crtStash, value);
                             input.clearStash();
@@ -706,7 +720,7 @@ private:
                         break;
 
                     case State.exp_sign:
-                        if (input.front == '+' || input.front == '-' || lexDigit())
+                        if (cur == '+' || cur == '-' || cur.isDigit)
                         {
                             input.stash();
                             crtState = State.exp;
@@ -718,11 +732,11 @@ private:
                         break;
 
                     case State.exp:
-                        if (lexDigit())
+                        if (cur.isDigit)
                         {
                             input.stash();
                         }
-                        else if (lexAlpha || input.front == '%' || input.front == '_' || input.front == '/' || input.front == '$' || input.front > 127)
+                        else if (cur.isAlpha || cur == '%' || cur == '_' || cur == '/' || cur == '$' || cur > 127)
                         {
                             parseNum(input.crtStash, value);
                             input.clearStash();
@@ -737,7 +751,7 @@ private:
                         break;
 
                     case State.unit:
-                        if (lexAlpha || input.front == '%' || input.front == '_' || input.front == '/' || input.front == '$' || input.front > 127)
+                        if (cur.isAlpha || cur == '%' || cur == '_' || cur == '/' || cur == '$' || cur > 127)
                         {
                             input.stash();
                         }
@@ -765,7 +779,7 @@ private:
         else if (input.crtStash == "Na")
         {
             input.clearStash();
-            if (input.front == 'N')
+            if (cur == 'N')
             {
                 crtToken = Token(TokenType.number, tag(double.nan));
                 input.popFront();
@@ -804,14 +818,14 @@ private:
             final switch (crtState)
             {
                 case State.year:
-                    if (lexDigit())
+                    if (cur.isDigit)
                     {
                         input.stash();
                         parts++;
                         if (parts > 4) // to many digits
                             return false;
                     }
-                    else if (input.front == '-' && parts == 4)
+                    else if (cur == '-' && parts == 4)
                     {
                         year = to!int(input.crtStash());
                         input.clearStash();
@@ -828,7 +842,7 @@ private:
                     }
                     break;
                 case State.month:
-                    if (lexDigit())
+                    if (cur.isDigit)
                     {
                         input.stash();
                         parts++;
@@ -837,7 +851,7 @@ private:
                     {
                         return false;
                     }
-                    else if (input.front == '-')
+                    else if (cur == '-')
                     {
                         month = to!int(input.crtStash());
                         input.clearStash();
@@ -849,7 +863,7 @@ private:
                     }
                     break;
                 case State.day:
-                    if (lexDigit())
+                    if (cur.isDigit)
                     {
                         input.stash();
                         parts++;
@@ -894,12 +908,12 @@ private:
             final switch (crtState)
             {
                 case State.hours:
-                    if (lexDigit()) // check the 2nd digit of the hours number
+                    if (cur.isDigit) // check the 2nd digit of the hours number
                     {
                         input.stash();
                         parts++;
                     }
-                    else if (input.front == ':' && parts == 2) // got the 2 hour numbers and sep
+                    else if (cur == ':' && parts == 2) // got the 2 hour numbers and sep
                     {
                         hours = to!int(input.crtStash());
                         input.clearStash();
@@ -913,12 +927,12 @@ private:
                     break;
 
                 case State.minutes:
-                    if (lexDigit())
+                    if (cur.isDigit)
                     {
                         input.stash();
                         parts++;
                     }
-                    else if (input.front == ':' && parts == 4)
+                    else if (cur == ':' && parts == 4)
                     {
                         minutes = to!int(input.crtStash());
                         input.clearStash();
@@ -931,7 +945,7 @@ private:
                     break;
 
                 case State.sec:
-                    if (lexDigit())
+                    if (cur.isDigit)
                     {
                         input.stash();
                         parts++;
@@ -941,7 +955,7 @@ private:
                             input.clearStash();
                         }
                     }
-                    else if (input.front == '.' && parts == 6)
+                    else if (cur == '.' && parts == 6)
                     {
                         crtState++;
                     }
@@ -952,7 +966,7 @@ private:
                     break;
 
                 case State.fraction:
-                    if (lexDigit())
+                    if (cur.isDigit)
                     {
                         input.stash();
                         parts++;
@@ -998,7 +1012,7 @@ private:
         Tag time;
         if (lexDate() && !input.empty) // try the date part
         {
-            if (input.front == 'T') // check the time marker
+            if (cur == 'T') // check the time marker
             {
                 date = crtToken.data;
                 input.clearStash(); // clear the date stash
@@ -1027,14 +1041,14 @@ private:
                     final switch (crtState)
                     {
                         case State.utc:
-                            if (input.front == 'Z') // end of utc date time
+                            if (cur == 'Z') // end of utc date time
                             {
                                 if (input.empty)
                                     break loop; // done
                                 crtState = State.tz;
                                 continue; // parse the UTC tz name
                             }
-                            else if (input.front == '-' || input.front == '+') // offset
+                            else if (cur == '-' || cur == '+') // offset
                             {
                                 input.stash();
                                 crtState++;
@@ -1046,7 +1060,7 @@ private:
                             break;
 
                         case State.hours:
-                            if (lexDigit()) // offset hours
+                            if (cur.isDigit) // offset hours
                             {
                                 input.stash();
                                 count++;
@@ -1056,7 +1070,7 @@ private:
                             {
                                 return false;
                             }
-                            if (input.front == ':' && count == 2) // got 2 numbers and a separator
+                            if (cur == ':' && count == 2) // got 2 numbers and a separator
                             {
                                 input.stash();
                                 count = 0;
@@ -1071,7 +1085,7 @@ private:
                             break;
 
                         case State.minutes:
-                            if (lexDigit()) // minutes number
+                            if (cur.isDigit) // minutes number
                             {
                                 input.stash();
                                 count++;
@@ -1092,7 +1106,7 @@ private:
                         case State.tz:
                             if (count == 0)
                             {
-                                if (input.front == ' ')
+                                if (cur == ' ')
                                 {
                                     count++;
                                     continue;
@@ -1105,7 +1119,7 @@ private:
                             
                             if (count == 1) // ensure tz starts with an alpha
                             {
-                                if (lexAlpha)
+                                if (cur.isAlpha)
                                 {
                                     input.stash();
                                     count++;
@@ -1116,11 +1130,11 @@ private:
                                     return false; // invalid tz start
                                 }
                             }
-                            else if (lexAlpha 
-                                     || input.front == '/' 
-                                     || input.front == '_' 
-                                     || input.front == '-' 
-                                     || input.front == '+' ) // the rest of tz chars
+                            else if (cur.isAlpha 
+                                     || cur == '/' 
+                                     || cur == '_' 
+                                     || cur == '-' 
+                                     || cur == '+' ) // the rest of tz chars
                             {
                                 input.stash();
                             }
@@ -1196,7 +1210,7 @@ private:
             final switch (state)
             {
                 case State.c:
-                    if (input.front == 'C')
+                    if (cur == 'C')
                     {
                         input.stash();
                         state++;
@@ -1205,7 +1219,7 @@ private:
                     return false;
                 
                 case State.p:
-                    if (input.front == '(')
+                    if (cur == '(')
                     {
                         input.stash();
                         state++;
@@ -1214,12 +1228,12 @@ private:
                     return false;
 
                 case State.lat:
-                    if (!lexDigit && input.front != '-')
+                    if (!cur.isDigit && cur != '-')
                         return false;
                     input.clearStash();
                     if (!lexNumber())
                         return false;
-                    if (input.front != ',')
+                    if (cur != ',')
                         return false;
                     lat = crtToken.data.val!Num;
                     input.clearStash();
@@ -1229,7 +1243,7 @@ private:
                 case State.lng:
                     if (!lexNumber())
                         return false;
-                    if (input.front != ')')
+                    if (cur != ')')
                         return false;
                     lng = crtToken.data.val!Num;
                     state++;
@@ -1264,16 +1278,16 @@ private:
             final switch (crtState)
             {
                 case State.firstChar:
-                    if (!lexAlphaHi)
+                    if (!cur.isUpper)
                         return false;
                     input.stash();
                     crtState    = State.opt;
                     break;
 
                 case State.opt:
-                    if (lexAlpha || lexDigit || input.front == '_')
+                    if (cur.isAlphaNum || cur == '_')
                         input.stash();
-                    else if (input.front == '(')
+                    else if (cur == '(')
                     {
                         type        = input.commitStash();
                         crtState    = State.enc;
@@ -1288,7 +1302,7 @@ private:
                     data = crtToken.data.get!Str;
                     crtToken = Token.init;
                     // check next char
-                    if (!input.empty && input.front == ')')
+                    if (!input.empty && cur == ')')
                         crtState    = State.done;
                     else
                         return false;
@@ -1314,92 +1328,58 @@ private:
         assertTokenEmpty(`Yx(""`);
     }
 
-    bool lexAlpha()
+    // lexer for legacy Bin tag
+    bool lexBin()
     {
-        return lexAlphaLo() || lexAlphaHi();
-    }
-    unittest
-    {
-        auto lex = ZincStringLexer("");
-        lex.input = LookAhead!string("a");
-        assert(lex.lexAlpha());
-        lex.input = LookAhead!string("Z");
-        assert(lex.lexAlpha);
-        lex.input = LookAhead!string("7");
-        assert(!lex.lexAlpha);
-    }
+        enum State { bin, mime, end }
+        State crtState;
+        for(; !input.empty; input.popFront())
+        {
+            final switch (crtState)
+            {
+                case State.bin:
+                    if (!input.find("Bin(", true))
+                       return false;
+                    if (cur == '"') // found possible XStr
+                    {
+                        input.save();
+                        return false;
+                    }
+                    input.clearStash();
+                    input.stash();
+                    crtState    = State.mime;
+                    break;
 
-    bool lexAlphaLo()
-    {
-        return input.front >= 'a' && input.front <= 'z';
-    }
-    unittest
-    {
-        auto lex = ZincStringLexer("");
-        lex.input = LookAhead!string("a");
-        assert(lex.lexAlphaLo);
-        lex.input = LookAhead!string("z");
-        assert(lex.lexAlphaLo);
-        lex.input = LookAhead!string("X");
-        assert(!lex.lexAlphaLo);
-    }
+                case State.mime:
+                    if (cur != ')')
+                        input.stash();
+                    else
+                        crtState = State.end;
+                    break;
 
-    bool lexAlphaHi()
-    {
-        return input.front >= 'A' && input.front <= 'Z';
+                case State.end:
+                    string data = input.commitStash();
+                    crtToken = Token(TokenType.xstr, XStr("Bin", data).Tag);
+                    return true;
+            }
+        }
+        return false;
     }
     unittest
     {
-        auto lex = ZincStringLexer("");
-        lex.input = LookAhead!string("A");
-        assert(lex.lexAlphaHi);
-        lex.input = LookAhead!string("Z");
-        assert(lex.lexAlphaHi);
-        lex.input = LookAhead!string("c");
-        assert(!lex.lexAlphaHi);
-    }
-
-    bool lexDigit()
-    {
-        return input.front >= '0' && input.front <= '9';
-    }
-    unittest
-    {
-        auto lex = ZincStringLexer("");
-        lex.input = LookAhead!string("9");
-        assert(lex.lexDigit);
-        lex.input = LookAhead!string("7");
-        assert(lex.lexDigit);
-        lex.input = LookAhead!string("x");
-        assert(!lex.lexDigit);
-    }
-
-    bool lexHexDigit()
-    {
-        return input.front >= 'a' && input.front <= 'f'
-            || input.front >= 'A' && input.front <= 'F'
-            || lexDigit();
-    }
-    unittest
-    {
-        auto lex = ZincStringLexer("");
-        lex.input = LookAhead!string("a");
-        assert(lex.lexHexDigit);
-        lex.input = LookAhead!string("E");
-        assert(lex.lexHexDigit);
-        lex.input = LookAhead!string("G");
-        assert(!lex.lexHexDigit);
+        assertTokenValue(`Bin(text/plain),`, Token(TokenType.xstr, XStr("Bin", "text/plain").Tag), 2);
+        assertTokenEmpty(`Bad(text/plain),`, 2);
     }
 
     bool lexWs()
     {
-        return input.front == ' ' || input.front == '\t';
+        return cur == ' ' || cur == '\t';
     }
 
     bool lexSep()
     {
-        return lexWs || input.front == ','
-            || input.front == '\n';
+        return lexWs || cur == ','
+            || cur == '\n';
     }
 
 private:
@@ -1416,29 +1396,29 @@ unittest
     auto l = ZincStringLexer("");
 }
 // test if provided string data decodes to the provided Token value
-private void assertTokenValue(string data, Token value)
+private void assertTokenValue(string data, Token value, int ver = 3)
 {
-    auto lex = ZincStringLexer(data);
+    auto lex    = ZincStringLexer(data, ver);
     assert(lex.front() == value, "Failed expecting: " ~ value.tag.toStr ~ " got: " ~ lex.front().tag.toStr);
 }
 
 // test if provided string data decodes to the provided Token type
-private void assertTokenType(string data, TokenType value)
+private void assertTokenType(string data, TokenType value, int ver = 3)
 {
-    auto lex = ZincStringLexer(data);
+    auto lex    = ZincStringLexer(data, ver);
     assert(lex.front().type == value);
 }
 
 // test if provided string data decodes to the provided Token value
-private void assertTokenIsNan(string data)
+private void assertTokenIsNan(string data, int ver = 3)
 {
-    auto lex = ZincStringLexer(data);
+    auto lex    = ZincStringLexer(data, ver);
     assert(lex.front().data.get!Num.isNaN);
 }
 // test if the provided string data can not be decoded
-private void assertTokenEmpty(string data)
+private void assertTokenEmpty(string data, int ver = 3)
 {
-    auto lex = ZincStringLexer(data);
+    auto lex    = ZincStringLexer(data, ver);
     assert(lex.front() == Token.init);
 }
 

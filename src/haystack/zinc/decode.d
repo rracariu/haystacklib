@@ -333,6 +333,9 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         else
                         {
                             value.type = Type.ver;
+                            import std.conv : parse;
+                            string ver = value.ver;
+                            parser.lexer.ver = parse!int(ver);
                             state++;
                         }
                         return; // stop if ver found
@@ -1021,6 +1024,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         void popFront()
         {
+            static shared Exception InvalidTagException = new shared Exception("Invalid tag type.");
             if (state == AnyTagState.scalar)
             {
                 if (!parser.isScalar)
@@ -1081,7 +1085,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                     return;
                 }
             }
-           assert(false, "Invalid state.");
+           throw InvalidTagException;
         }
 
         bool consume()
