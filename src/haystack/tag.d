@@ -817,10 +817,10 @@ struct GridImpl(T)
         return val[index];
     }
 
-    int opApply(int delegate(ref immutable(T)) dg) const
+    int opApply(scope int delegate(ref immutable(T)) dg) const
     {
         int result = 0;
-        foreach (dict; cast(immutable)val)
+        foreach (dict; cast(immutable) val)
         {
             result = dg(dict);
             if (result)
@@ -829,10 +829,10 @@ struct GridImpl(T)
         return result;
     }
 
-   int opApply(int delegate(ref size_t i, ref immutable(T)) dg) const
+   int opApply(scope int delegate(ref size_t i, ref immutable(T)) dg) const
    {
        int result = 0;
-       foreach (i, dict; cast(immutable)val)
+       foreach (i, dict; cast(immutable) val)
        {
            result = dg(i, dict);
            if (result)

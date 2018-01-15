@@ -622,7 +622,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         if (parser.hasChr(','))
                         {
                             value = AnyTag(Tag.init);
-                            if(parser.lexer.empty)
+                            if (parser.lexer.empty)
                                 state =  RowsState.sep;
                             else
                                 parser.lexer.popFront();
@@ -652,7 +652,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         else if (parser.hasChr(','))
                         {
                             state = RowsState.tag;
-                            if(parser.lexer.empty)
+                            if (parser.lexer.empty)
                                 state =  RowsState.ok;
                             else
                                 continue;

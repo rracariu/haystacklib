@@ -213,7 +213,7 @@ private:
                                 {
                                     if (!hasEq)
                                     {
-                                        if(m[0] == chr)
+                                        if (m[0] == chr)
                                         {
                                             op = m;
                                             break;
@@ -221,7 +221,7 @@ private:
                                     }
                                     else
                                     {
-                                        if(m[0] == chr && m[$ - 1] == '=')
+                                        if (m[0] == chr && m[$ - 1] == '=')
                                         {
                                             op = m;
                                             break;
@@ -682,7 +682,7 @@ unittest
         {
             if (i == 0)
             {
-                if(!dict.has(p) || equip["id"] != dict[p])
+                if (!dict.has(p) || equip["id"] != dict[p])
                     break;
             }
             if (i == 1)
@@ -823,7 +823,7 @@ struct Cmp
         foreach(Type; Tag.AllowedTypes)
         {
             Type t = Type.init;
-            if(typeid(Type) == val.type)
+            if (typeid(Type) == val.type)
                 return [path.segments[$ - 1]: Tag(t)];
         }
         return [path.segments[$]: marker];

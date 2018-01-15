@@ -252,7 +252,7 @@ private:
     // ctfe code gen for lexing a type
     static string lexInstruction(string tok, string next)
     {
-        return "if(lex" ~ tok ~"())" ~
+        return "if (lex" ~ tok ~"())" ~
             "    break loop;" ~
             "else" ~
             "   tryToken = TokenType." ~ next ~ ";" ~
@@ -1078,10 +1078,8 @@ private:
                                 continue;
                             }
                             // no separator found
-                            if( count > 2)
-                            {
+                            if (count > 2)
                                 return false;
-                            }
                             break;
 
                         case State.minutes:
