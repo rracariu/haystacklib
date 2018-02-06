@@ -152,7 +152,7 @@ unittest
     assert(20.tag == Tag(Num(20.0)));
     assert(11.tag("$") == Tag(Num(11, "$")));
 }
-
+/// ditto
 Tag tag(T:double)(T t, string unit = string.init)     { return Tag(Num(t, unit)); }
 unittest
 {
@@ -166,39 +166,31 @@ unittest
     assert("some string tag".tag == Tag(Str("some string tag")));
 }
 /// ditto
-Tag tag(Ref t)  { return Tag(t); }
-unittest
-{
-    assert(Ref("1234").tag == Tag(Ref("1234")));
-}
-/// ditto
 Tag tag(T:bool)(T t)    { return Tag(Bool(t)); }
 unittest
 {
     assert(false.tag == Tag(Bool(false)));
 }
+
+/**
+Creates a Tag from a Tag allowed type.
+Returns: Tag
+**/
+Tag tag(T)(T t) if (Tag.allowed!T)
+{
+    return Tag(cast() t); 
+}
 /// ditto
-Tag tag(SysTime t)    { return Tag(t); }
+Tag tag(TagList t)
+{ 
+    return Tag(t); 
+}
 unittest
 {
+    assert(Ref("1234").tag == Tag(Ref("1234")));
     assert(SysTime(DateTime(2017, 1, 24, 12, 30, 33)).tag == Tag(SysTime(DateTime(2017, 1, 24, 12, 30, 33))));
-}
-/// ditto
-Tag tag(TagList t)    { return Tag(t); }
-unittest
-{
     assert([1.tag, true.tag].tag == Tag([1.tag, true.tag]));
-}
-/// ditto
-Tag tag(Dict t)    { return Tag(t); }
-unittest
-{
     assert(["a": "foo".tag].tag == Tag(["a": "foo".tag]));
-}
-/// ditto
-Tag tag(Grid t)    { return Tag(t); }
-unittest
-{
     assert(Grid([["a": "foo".tag]]) == Tag(Grid([["a": "foo".tag]])));
 }
 /**
@@ -713,14 +705,9 @@ Haystack Grid.
 struct GridImpl(T)
 {
     /// Create $(D Grid) from a list of Dict
-    this(T[] val)
+    this(inout T[] val)
     {
         this(val, T.init);
-    }
-    /// Create dict from const or immutable Dict
-    this(const(T[]) val)
-    {
-        this(cast(T[])val, T.init);
     }
 
     /// Create a $(D Grid) from a list of $(D Dict) and a meta data $(D Dict)
