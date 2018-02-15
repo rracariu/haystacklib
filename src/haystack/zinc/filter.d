@@ -136,7 +136,7 @@ private:
                     else
                     {
                         lexer.popFront();
-                        auto term = Term.makeOr(parseOr(lexer, true));
+                        auto term = Term(parseOr(lexer, true));
                         if (!lexer.front.hasChr(')'))
                             throw InvalidFilterException;
                         lexer.popFront();
@@ -163,7 +163,7 @@ private:
                 
                 case State.missing:
                     auto path = parsePath(lexer);
-                    return Term.makeMissing(Missing(path));
+                    return Term(Missing(path));
 
                 case State.cmp:
                     auto chr = lexer.front.isChar ?  lexer.front.chr : dchar.init;
@@ -228,7 +228,7 @@ private:
                                         }
                                     }
                                 }
-                                return Term.makeCmp(Cmp(crtPath, op, tag));
+                                return Term(Cmp(crtPath, op, tag));
                             }
                             else // invalid term
                                 break;
@@ -237,7 +237,7 @@ private:
                     }
                     else
                     {
-                        return Term.makeHas(Has(crtPath));
+                        return Term(Has(crtPath));
                     }
 
                 default:
@@ -373,7 +373,8 @@ struct Or
         assert(a.isValid, "Invalid 'or' experssion.");
         if (!b.isNull)
             return a.eval(obj, resolver) || b.eval(obj, resolver);
-        else return a.eval(obj, resolver);
+        else 
+            return a.eval(obj, resolver);
     }
     
     size_t toHash() const nothrow @trusted
@@ -420,7 +421,8 @@ struct And
         assert(a.isValid, "Invalid 'and' expression.");
         if (!b.isNull && b.isValid)
             return a.eval(obj, resolver) && b.eval(obj, resolver);
-        else return a.eval(obj, resolver);
+        else 
+            return a.eval(obj, resolver);
     }
 
     size_t toHash() const nothrow
@@ -447,42 +449,31 @@ struct Term
         has,
         missing,
         cmp,
-        empty = ubyte.max
+        empty
     }
 
-    Type type = Type.empty;
-
-    @property bool isValid() const
+    this(Or or)
     {
-        return type != Type.empty;
+        type    = Type.or;
+        val.or  = or.move();
     }
 
-    static Term makeOr(Or or)
+    this(Has has)
     {
-        auto term = Term(Type.or);
-        term.val.or = or.move();
-        return term;
+        type    = Type.has;
+        val.has = has;
     }
 
-    static Term makeHas(Has has)
+    this(Missing missing)
     {
-        auto term = Term(Type.has);
-        term.val.has = has;
-        return term;
+        type        = Type.missing;
+        val.missing = missing;
     }
 
-    static Term makeMissing(Missing missing)
+    this(Cmp cmp)
     {
-        auto term = Term(Type.missing);
-        term.val.missing = missing;
-        return term;
-    }
-
-    static Term makeCmp(Cmp cmp)
-    {
-        auto term = Term(Type.cmp);
-        term.val.cmp = cmp;
-        return term;
+        type    = Type.cmp;
+        val.cmp = cmp;
     }
 
     static Term makeEmpty()
@@ -505,11 +496,6 @@ struct Term
             case Type.empty:
                 return false;
         }
-    }
-
-    this(Type type)
-    {
-        this.type = type;
     }
 
     size_t toHash() const nothrow
@@ -548,6 +534,11 @@ struct Term
                 return true;
         }
     }
+
+    @property bool isValid() const
+    {
+        return type != Type.empty;
+    }
     
     ~this()
     {
@@ -571,6 +562,11 @@ private:
     @disable this();
     @disable this(this);
 
+    this(Type type)
+    {
+        this.type = type;
+    }
+
     union Val
     {
         Own!Or or       = void;
@@ -578,8 +574,9 @@ private:
         Missing missing = void;
         Cmp cmp         = void;
     }
-
-    Val val = void;
+    
+    Type type   = Type.empty;
+    Val val     = void;
 }
 
 /**
