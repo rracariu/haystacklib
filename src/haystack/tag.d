@@ -181,7 +181,7 @@ Tag tag(T)(T t) if (Tag.allowed!T)
     return Tag(cast() t); 
 }
 /// ditto
-Tag tag(TagList t)
+Tag tag(TagList t) pure
 { 
     return Tag(t); 
 }
@@ -197,7 +197,7 @@ unittest
 Creates a Marker ($D Tag).
 Returns: a Marker Tag
 **/
-@property Tag marker()
+@property Tag marker() pure
 {
     return Tag(Marker());
 }
@@ -209,7 +209,7 @@ unittest
 Creates a Na ($D Tag).
 Returns: a Na Tag
 **/
-@property Tag na()
+@property Tag na() pure
 {
     return Tag(Na());
 }
