@@ -486,6 +486,11 @@ struct Ref
     {
         return "@" ~ val;
     }
+
+    @property bool empty() pure const nothrow
+    {
+        return val.length > 0;
+    }
 }
 unittest
 {
@@ -871,6 +876,13 @@ struct GridImpl(T)
        return buf.data;
     }
 
+   this(immutable typeof(this) other) immutable
+   {
+        this.val        = other.val;
+        this._meta      = other._meta;
+        this.columns    = other.columns;
+   }
+
 private:
     // Grid storage
     T[] val;
@@ -897,4 +909,21 @@ unittest
     row1 = ["name": tag([tag(1)])];
     auto grid1 = Grid([row1]);
     assert( grid1[0]["name"][0] == Num(1).tag);
+}
+
+/// Make an error $(D Grid)
+Grid errorGrid(string message)
+{
+    return Grid([], ["err" : marker, "dis" : message.tag]);
+}
+Grid errorGrid(Exception ex)
+{
+    auto desc = ["err" : marker, "dis" : ex.msg.tag];
+    if (ex.info)
+        desc["errTrace"] = ex.info.toString.tag;
+    return Grid([], desc);
+}
+unittest
+{
+    assert(errorGrid(new Exception("an error")).meta["err"] == marker());
 }
