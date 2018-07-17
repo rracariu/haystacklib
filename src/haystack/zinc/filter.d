@@ -752,12 +752,12 @@ struct Missing
 {
     this(string path)
     {
-        this.path = Path(path);
+        this.has = Path(path);
     }
 
     this(Path path)
     {
-        this.path = path;
+        this.has = path;
     }
     @disable this();
 
