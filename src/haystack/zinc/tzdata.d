@@ -11,7 +11,7 @@ module haystack.zinc.tzdata;
 import std.string : toUpper;
 import std.datetime : TimeZone, UTC;
 
-private string cityName(string fullName)
+private string cityName(string fullName) pure
 {
     import std.string : lastIndexOf;
     if (fullName.toUpper == "STD")
@@ -22,10 +22,12 @@ private string cityName(string fullName)
 version(Posix)
 {
     import std.datetime : PosixTimeZone;
-    static immutable __gshared string[string] shortNames;
+
+    immutable string[string] shortNames;
+
     shared static this()
     {
-        auto tzNames =
+        shortNames = cast(immutable)
         [
             "Abidjan":"Africa/Abidjan",
             "Accra":"Africa/Accra",
@@ -577,7 +579,7 @@ version(Posix)
             "Pacific-New":"US/Pacific-New",
             "Samoa":"US/Samoa"
         ];
-        shortNames = cast(immutable) tzNames;
+
         import std.stdio;
         try
         {
@@ -587,7 +589,9 @@ version(Posix)
                 hasTzData = false;
             }
             else
+            {
                 hasTzData = true;
+            }
         }
         catch(Exception e)
         {
@@ -635,7 +639,7 @@ version (Windows)
         }
         else
         {
-            return shortNames[name];
+            return getTimeZone(name);
         }
     }
 
@@ -653,27 +657,37 @@ version (Windows)
         return "";
     }
 
+    private immutable(TimeZone) getTimeZone(string name)
+    {
+        static TimeZone[string] shortNames;
 
-    immutable static __gshared TZConversions conv;
-    immutable static __gshared TimeZone[string] shortNames;
+        if (name in shortNames)
+            return cast(immutable) shortNames[name];
+
+        foreach (shortNameList; conv.fromWindows.byValue)
+        {
+            foreach (fullName; shortNameList)
+            {
+                auto shortName  = cityName(fullName);
+                if (shortName != name)
+                    continue;
+                auto tzName             = conv.toWindows[fullName][0];
+                auto tz                 = WindowsTimeZone.getTimeZone(tzName);
+                shortNames[shortName]   = cast(TimeZone) tz;
+                return tz;
+            }
+        }
+        return null;
+    }
+
+    private immutable TZConversions conv;
 
     shared static this()
     {
         conv = parseTZConversions(windowsZones);
-
-        foreach(ref shortNameList; conv.fromWindows.byValue)
-        {
-            foreach(ref fullName; shortNameList)
-            {
-                auto shortName = cityName(fullName);
-                auto tzName = conv.toWindows[fullName][0];
-                shortNames[shortName] = WindowsTimeZone.getTimeZone(tzName);
-            }
-        }
-
     }
 
-    private static immutable __gshared windowsZones = `<supplementalData>
+    private enum windowsZones = `<supplementalData>
         <version number="$Revision$"/>
         <windowsZones>
         <mapTimezones otherVersion="7e00402" typeVersion="2016j">
