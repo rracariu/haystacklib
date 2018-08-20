@@ -997,7 +997,7 @@ private:
     unittest
     {
         // good
-        assertTokenValue("09:40:03", Token(TokenType.date, Time(09, 40, 03).Tag));
+        assertTokenValue("09:40:03", Token(TokenType.date, Time(9, 40, 3).Tag));
         assertTokenValue("23:59:59", Token(TokenType.date, Time(23, 59, 59).Tag));
         assertTokenValue("23:59:59.999", Token(TokenType.date, Time(23, 59, 59, 999).Tag));
         // bad
@@ -1184,15 +1184,15 @@ private:
         import std.datetime : TimeZone, UTC;
 
         // good
-        assertTokenValue("2017-01-17T13:51:20Z", Token(TokenType.dateTime, SysTime(DateTime(2017, 01, 17, 13, 51, 20), UTC()).Tag));
-        assertTokenValue("2009-11-09T15:39:00Z", Token(TokenType.dateTime, SysTime(DateTime(2009, 11, 09, 15, 39, 00), UTC()).Tag));
-        assertTokenValue("1989-12-21T15:39:00Z UTC", Token(TokenType.dateTime, SysTime(DateTime(1989, 12, 21, 15, 39, 00), UTC()).Tag));
-        assertTokenValue("2015-03-31T18:06:41.956Z", Token(TokenType.dateTime, SysTime(DateTime(2015, 03, 31, 18, 06, 41), msecs(956), UTC()).Tag));
+        assertTokenValue("2017-01-17T13:51:20Z", Token(TokenType.dateTime, SysTime(DateTime(2017, 1, 17, 13, 51, 20), UTC()).Tag));
+        assertTokenValue("2009-11-09T15:39:00Z", Token(TokenType.dateTime, SysTime(DateTime(2009, 11, 9, 15, 39, 0), UTC()).Tag));
+        assertTokenValue("1989-12-21T15:39:00Z UTC", Token(TokenType.dateTime, SysTime(DateTime(1989, 12, 21, 15, 39, 0), UTC()).Tag));
+        assertTokenValue("2015-03-31T18:06:41.956Z", Token(TokenType.dateTime, SysTime(DateTime(2015, 3, 31, 18, 6, 41), msecs(956), UTC()).Tag));
         
         import haystack.zinc.tzdata;
-        assertTokenValue("2010-08-31T08:45:00+02:00 Europe/Athens", Token(TokenType.dateTime, SysTime(DateTime(2010, 08, 31, 08, 45, 00), timeZone("Europe/Athens")).Tag));
-        assertTokenValue("2010-08-31T08:45:00-05:00 New_York", Token(TokenType.dateTime, SysTime(DateTime(2010, 08, 31, 08, 45, 00), timeZone("New_York")).Tag));
-        assertTokenValue("2010-08-31T08:45:00+02:00 Nicosia", Token(TokenType.dateTime, SysTime(DateTime(2010, 08, 31, 08, 45, 00), timeZone("Asia/Nicosia")).Tag));
+        assertTokenValue("2010-08-31T08:45:00+02:00 Europe/Athens", Token(TokenType.dateTime, SysTime(DateTime(2010, 8, 31, 8, 45, 0), timeZone("Europe/Athens")).Tag));
+        assertTokenValue("2010-08-31T08:45:00-05:00 New_York", Token(TokenType.dateTime, SysTime(DateTime(2010, 8, 31, 8, 45, 0), timeZone("New_York")).Tag));
+        assertTokenValue("2010-08-31T08:45:00+02:00 Nicosia", Token(TokenType.dateTime, SysTime(DateTime(2010, 8, 31, 8, 45, 0), timeZone("Asia/Nicosia")).Tag));
         // bad
         assertTokenEmpty("2009-11-09T");
         assertTokenEmpty("2009-11-09T4");
