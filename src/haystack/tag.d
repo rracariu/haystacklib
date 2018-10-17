@@ -606,7 +606,7 @@ Gets the 'dis' property for the $(D Dict).
 If the $(D Dict) has no 'id' or no 'dis' then an empty string is returned,
 if there is an 'id' property but without a 'dis' the 'id' value is returned.
 */
-string dis()(auto ref const(Dict) rec)
+@property string dis()(auto ref const(Dict) rec)
 {
     if (rec.missing("id")
         || (rec["id"].peek!(const(Ref)) is null
@@ -652,6 +652,27 @@ unittest
     assert(d.has!Ref("id"));
     assert(!d.has!Bool("num"));
     assert(d.has!Num("num"));
+}
+
+/**
+Test if the `Dict` has a `key` of null value
+
+Params:
+dict    = the ditionary.
+key     = the key to look up 
+
+Returns: true if dict has a null value key.
+
+*/
+@property bool isNull()(auto ref const(Dict) dict, string key)
+{
+    return dict.has(key) && dict[key] == Tag.init;
+}
+unittest
+{
+    Dict d = ["foo": false.tag, "bar": Tag()];
+    assert(!d.isNull("id"));
+    assert(d.isNull("bar"));
 }
 
 /**
