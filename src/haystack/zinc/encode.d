@@ -16,6 +16,7 @@ import std.range.primitives : isOutputRange;
 // Tag Encoding to Zinc
 //
 ///////////////////////////////////////////////////////////////////
+
 /**
 Encodes Marker as 'M'.
 Expects an OutputRange as writer.
@@ -354,7 +355,7 @@ Encodes any Tag as zinc.
 Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
-void encode(R) (auto ref const(Tag) val, auto ref R writer)
+void encode(R) (auto ref const(Tag) val, auto ref R writer, SortedKeys sorted = SortedKeys.no)
 if (isOutputRange!(R, char))
 {
     import std.variant  : VariantN, This;
@@ -386,8 +387,8 @@ if (isOutputRange!(R, char))
                     (ref Time v)    => v.encode(writer),
                     (ref SysTime v) => v.encode(writer),
                     (ref TagList v) => v.encode(writer),
-                    (ref Dict v)    => v.encode(writer),
-                    (ref Grid v)    => v.encode(writer)
+                    (ref Dict v)    => v.encode(writer, DictBraces.yes, sorted),
+                    (ref Grid v)    => v.encode(writer, sorted)
                     )();
 
     if (isGrid)
@@ -423,46 +424,75 @@ unittest
     auto list = [1.tag, "foo".tag, false.tag];
     assert(list.zinc() == `[1,"foo",F]`);
 }
+
+/// Flag for sorting columns names and dictionary keys alphabetically
+enum SortedKeys { no, yes }
+
+/// Flag for wrapping zinc dicts in `{}`
+enum DictBraces { no, yes }
+
 /**
 Encodes Dict as  {dis:"Building" site area:35000ft²}.
 Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
-void encode(R) (auto ref const(Dict) val, auto ref R writer, bool useBraces = true)
+void encode(R) (auto ref const(Dict) dict,
+                auto ref R writer,
+                DictBraces useBraces = DictBraces.yes,
+                SortedKeys sorted = SortedKeys.no)
 if (isOutputRange!(R, char))
 {
-    if (useBraces)
+    if (useBraces == DictBraces.yes)
         writer.put('{');
-    size_t i = 0;
-    foreach (name, ref value; val)
+    
+    void encodeEntry(string name, ref const(Tag) value)
     {
         writer.put(name);
         if (!value.peek!Marker)
         {
             writer.put(':');
-            value.encode(writer);
+            value.encode(writer, sorted);
         }
-        if (i++ < val.length - 1)
-            writer.put(' ');
     }
-    if (useBraces)
+    
+    size_t i = 0;
+    if (sorted == SortedKeys.no)
+    {
+        foreach (name, ref value; dict)
+        {
+            encodeEntry(name, value);
+            if (i++ < dict.length - 1)
+                writer.put(' ');
+        }
+    }
+    else
+    {
+        import std.algorithm : sort;
+        foreach (key; dict.keys().sort())
+        {
+            const val = dict[key];
+            encodeEntry(key, val);
+            if (i++ < dict.length - 1)
+                writer.put(' ');
+        }
+    }
+    if (useBraces == DictBraces.yes)
         writer.put('}');
-
 }
 unittest
 {
     auto dict = ["marker": marker, "num": 42.tag, "str": "a string".tag];
-    assert(dict.zinc() == `{num:42 marker str:"a string"}`);
+    assert(dict.zinc(SortedKeys.yes) == `{marker num:42 str:"a string"}`);
 }
 
-void encodeGridHeader(R)(auto ref const(Dict) meta, auto ref R writer)
+void encodeGridHeader(R)(auto ref const(Dict) meta, auto ref R writer, SortedKeys sorted = SortedKeys.no)
 if (isOutputRange!(R, char))
 {
     writer.put(`ver:"3.0"`);
     if (meta.length > 0)
     {
         writer.put(' ');
-        meta.encode(writer, false);
+        meta.encode(writer, DictBraces.no, sorted);
     }
     writer.put('\n');
 }
@@ -472,17 +502,25 @@ Encodes Grid as ver:"3.0" ... .
 Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
-void encode(R) (auto ref const(Grid) grid, auto ref R writer)
+void encode(R) (auto ref const(Grid) grid, auto ref R writer, SortedKeys sorted = SortedKeys.no)
 if (isOutputRange!(R, char))
 {
-    encodeGridHeader(grid.meta, writer);
+    encodeGridHeader(grid.meta, writer, sorted);
     if (grid.length == 0)
     {
         writer.put("empty");
         writer.put('\n');
         return;
     }
-    auto cols = grid.colNames;
+
+    string[] cols = cast(string[]) grid.colNames();
+    if (sorted == SortedKeys.yes)
+    {
+        import std.array        : array;
+        import std.algorithm    : sort;
+        cols = cols.sort().array();
+    }
+
     foreach (size_t i, col; cols)
     {
         writer.put(col);
@@ -495,7 +533,7 @@ if (isOutputRange!(R, char))
         foreach (size_t colCnt, col; cols)
         {
             if (row.has(col) && row[col].hasValue)
-                row[col].encode(writer);
+                row[col].encode(writer, sorted);
             if (colCnt < cols.length - 1)
                 writer.put(',');
         }
@@ -508,17 +546,18 @@ unittest
     auto expect = "ver:\"3.0\"\n"
                  ~"empty\n";
     auto empty = Grid([]);
-    assert(empty.zinc() == expect);
+    assert(empty.zinc(SortedKeys.yes) == expect);
     // grid of scalars
     auto grid = [
         ["marker": marker, "num": 42.tag, "str": "a string".tag],
         ["marker": marker, "num": 100.tag, "str": "a string".tag]
     ];
     expect = "ver:\"3.0\"\n"
-        ~"num,marker,str\n"
-        ~`42,M,"a string"` ~ "\n"
-        ~`100,M,"a string"`;
-    assert(Grid(grid).zinc() == expect);
+        ~"marker,num,str\n"
+        ~`M,42,"a string"` ~ "\n"
+        ~`M,100,"a string"`;
+    string encoded = Grid(grid).zinc(SortedKeys.yes);
+    assert(encoded == expect);
     // list and dict
     grid =  [
         ["list": [1.tag, true.tag].tag],
@@ -527,8 +566,9 @@ unittest
     expect = "ver:\"3.0\"\n"
         ~ "dict,list\n"
         ~ ",[1,T]\n"
-        ~ "{b a:1},";
-    assert(Grid(grid).zinc() == expect);
+        ~ "{a:1 b},";
+    encoded = Grid(grid).zinc(SortedKeys.yes);
+    assert(encoded == expect);
     // grid of compound and scalar
     grid =  [
         ["type":"list".tag, "val": [1.tag, 2.tag, 3.tag].tag],
@@ -537,41 +577,49 @@ unittest
         ["type":"scalar".tag, "val": "a scalar".tag],
     ];
     expect = "ver:\"3.0\"\n"
-        ~"val,type\n"
-        ~`[1,2,3],"list"` ~ "\n"
-        ~`{dis:"Dict!" foo},"dict"` ~ "\n"
-        ~"<<\n"
+        ~"type,val\n"
+        ~`"list",[1,2,3]` ~ "\n"
+        ~`"dict",{dis:"Dict!" foo}` ~ "\n"
+        ~`"grid"`~",<<\n"
         ~"ver:\"3.0\"\n"
-        ~"b,a\n"
-        ~"2,1\n"
-        ~"4,3\n"
-        ~`>>,"grid"` ~ "\n"
-        ~`"a scalar","scalar"`;
-    auto d = Grid(grid).zinc();
-    assert(d == expect);
+        ~"a,b\n"
+        ~"1,2\n"
+        ~"3,4\n"
+        ~`>>` ~ "\n"
+        ~`"scalar","a scalar"`;
+    encoded = Grid(grid).zinc(SortedKeys.yes);
+    assert(encoded == expect);
     // meta
     scope metagrid = Grid([["a":1.tag]], ["foo": marker()]);
     expect = `ver:"3.0" foo` ~"\n"
         ~"a\n"
         ~"1";
-    d = zinc(metagrid);
-    assert(d == expect);
+    encoded = zinc(metagrid, SortedKeys.yes);
+    assert(encoded == expect);
 }
 
 /**
 Encodes any Tag type to Zinc using the $(D OutputRange)
 */
-void zinc(T, R)(auto ref const(T) t, auto ref R writer)
+void zinc(T, R)(auto ref const(T) t, auto ref R writer, SortedKeys sorted = SortedKeys.no)
 if (isOutputRange!(R, char))
 {
-    static if (is(T == TimeOfDay))
+    static if (is (T == TimeOfDay))
     {
         Time(t).encode(writer);
     }
-    else static if (is(T == DateTime))
+    else static if (is (T == DateTime))
     {
         import std.datetime : UTC;
         SysTime(t, UTC()).encode(writer);
+    }
+    else static if (is (T : const(Dict)))
+    {
+        t.encode(writer, DictBraces.yes, sorted);
+    }
+    else static if (is (T : const(Grid)))
+    {
+        t.encode(writer, sorted);
     }
     else
     {
@@ -582,10 +630,10 @@ if (isOutputRange!(R, char))
 /**
 Encodes any Tag type to a Zinc string
 */
-string zinc(T)(auto ref const(T) t)
+string zinc(T)(auto ref const(T) t, SortedKeys sorted = SortedKeys.no)
 {
     import std.array : appender;
     auto buf = appender!string();
-    zinc(t, buf);
+    zinc(t, buf, sorted);
     return buf.data;
 }
