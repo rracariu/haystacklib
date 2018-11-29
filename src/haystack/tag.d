@@ -20,7 +20,7 @@ enum TagType
     Marker,
     Na,
     Bool,
-    Num,
+    Number,
     Str,
     XStr,
     Coord,
