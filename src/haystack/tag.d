@@ -8,7 +8,8 @@ Authors:   Radu Racariu
 **/
 
 module haystack.tag;
-import std.variant : Algebraic, This;
+import std.variant  : Algebraic, This;
+import std.traits   : Unqual;
 // types that are public imported
 public import std.datetime  : TimeOfDay;
 public import std.datetime  : Date;
@@ -176,7 +177,7 @@ unittest
 Creates a Tag from a Tag allowed type.
 Returns: Tag
 **/
-Tag tag(T)(T t) if (Tag.allowed!T)
+Tag tag(T)(T t) if (Tag.allowed!(Unqual!T))
 {
     return Tag(cast() t); 
 }
@@ -608,12 +609,7 @@ if there is an 'id' property but without a 'dis' the 'id' value is returned.
 */
 @property string dis()(auto ref const(Dict) rec)
 {
-    if (rec.missing("id")
-        || (rec["id"].peek!(const(Ref)) is null
-            && rec["id"].peek!(immutable(Ref)) is null
-                && rec["id"].peek!(Ref) is null))
-        return "";
-    auto id = rec["id"].get!(const(Ref));
+    auto id = rec.get!Ref("id");
     return id.dis != "" ? id.dis : id.val;
 }
 unittest
