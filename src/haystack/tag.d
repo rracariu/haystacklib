@@ -543,10 +543,11 @@ struct Time
 
 unittest
 {
-    Time t = Time(17, 47, 28);
+    Time t = Time(17, 47, 28, 99);
     assert(t.hour == 17);
     assert(t.minute == 47);
     assert(t.second == 28);
+    assert(t.millis == 99);
     import std.exception : assertThrown;
     import core.time : TimeException;
     assertThrown!TimeException(Time(100, 47, 28));
