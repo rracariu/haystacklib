@@ -151,10 +151,18 @@ Tag tag(double val, string unit = "")
 { 
     return Tag(Num(val, unit));
 }
+/// ditto
+Tag tag(long val, string unit = "")
+{ 
+    return Tag(Num(val, unit));
+}
 unittest
 {
     assert(double.infinity.tag == Tag(Num(double.infinity)));
     assert(42.00.tag("C") == Tag(Num(42, "C")));
+
+    assert(12.tag == Tag(Num(12)));
+    assert(42.tag("C") == Tag(Num(42, "C")));
 }
 /// ditto
 Tag tag(T:string)(T t)
