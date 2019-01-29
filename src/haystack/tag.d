@@ -147,27 +147,29 @@ unittest
 Creates a Tag from a buildin type.
 Returns: Tag
 **/
-Tag tag(T:int)(T t, string unit = string.init) { return Tag(Num(t, unit)); }
-unittest
-{
-    assert(20.tag == Tag(Num(20.0)));
-    assert(11.tag("$") == Tag(Num(11, "$")));
+Tag tag(double val, string unit = "")
+{ 
+    return Tag(Num(val, unit));
 }
-/// ditto
-Tag tag(T:double)(T t, string unit = string.init)     { return Tag(Num(t, unit)); }
 unittest
 {
     assert(double.infinity.tag == Tag(Num(double.infinity)));
     assert(42.00.tag("C") == Tag(Num(42, "C")));
 }
 /// ditto
-Tag tag(T:string)(T t)  { return Tag(Str(t)); }
+Tag tag(T:string)(T t)
+{
+    return Tag(Str(t));
+}
 unittest
 {
     assert("some string tag".tag == Tag(Str("some string tag")));
 }
 /// ditto
-Tag tag(T:bool)(T t)    { return Tag(Bool(t)); }
+Tag tag(T:bool)(T t)
+{
+    return Tag(Bool(t));
+}
 unittest
 {
     assert(false.tag == Tag(Bool(false)));
@@ -301,6 +303,18 @@ struct Num
     alias val this;
     /// the unit defined for this number
     string unit;
+
+    this(Num n)
+    {
+        this.val    = n.val;
+        this.unit   = n.unit;
+    }
+
+    this(double val, string unit = null)
+    {
+        this.val    = val;
+        this.unit   = unit;
+    }
 
     bool opEquals()(auto ref const Num num) const
     {
