@@ -181,7 +181,12 @@ Returns: Tag
 **/
 Tag tag(T)(T t) if (Tag.allowed!(Unqual!T))
 {
-    return Tag(cast() t); 
+    return Tag(cast() t);
+}
+/// ditto
+Tag tag(Num n)
+{ 
+    return Tag(n);
 }
 /// ditto
 Tag tag(TagList t) pure
@@ -363,6 +368,11 @@ unittest
     assert(z != y);
     auto a = Num(12);
     assert(a == 12 && a.unit == string.init);
+
+    a = Num(42, "$");
+    auto t = a.tag();
+    assert(t.get!(Num).val == 42 && t.get!(Num).unit == "$");
+
 }
 /************************************************************
 Holds a string value
