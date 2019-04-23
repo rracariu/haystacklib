@@ -14,7 +14,7 @@ import std.range.primitives : empty, isInputRange, ElementEncodingType;
 
 import haystack.tag;
 import haystack.zinc.lexer;
-import haystack.zinc.util : Own, LookAhead;
+import haystack.zinc.util : Own;
 
 ///////////////////////////////////////////////////////////////////
 //
@@ -68,7 +68,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                 case ParserState.header:
                     if (element.type == Element.Type.header)
                     {
-                        if (element.header.consume() && isNl)
+                        if (element.header.consume() && isNewLine)
                         {
                             lexer.popFront();
                             state++;
@@ -85,7 +85,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                 case ParserState.colums:
                     if (element.type == Element.Type.columns)
                     {
-                        if (element.columns.consume() && isNl)
+                        if (element.columns.consume() && isNewLine)
                         {
                             lexer.popFront();
                             state++;
@@ -104,10 +104,10 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                     {
                         if (element.rows.consume())
                         {
-                            if (isNl)
+                            if (isNewLine)
                             {
                                 lexer.popFront();
-                                if (isNl || lexer.empty)
+                                if (isNewLine || lexer.empty)
                                     state = ParserState.ok;
                                 else
                                     element.rows = Rows(this);
@@ -126,9 +126,9 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                     }
                     else
                     {
-                        if (isWs)
+                        if (isSpace)
                             continue;
-                        if (isNl)
+                        if (isNewLine)
                             state = ParserState.ok;
                         else
                             element.rows = Rows(this);
@@ -326,7 +326,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                 switch (state)
                 {
                     case HeaderState.ver:
-                        if (parser.isWs() && !parser.lexer.empty)
+                        if (parser.isSpace() && !parser.lexer.empty)
                             continue;
                         if (!parseVer())
                             state = HeaderState.fault;
@@ -341,7 +341,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         return; // stop if ver found
 
                     case HeaderState.tags:
-                        if (parser.isNl)
+                        if (parser.isNewLine)
                         {
                             state = HeaderState.ok;
                         }
@@ -399,7 +399,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         loop:
             for (; !parser.lexer.empty(); parser.lexer.popFront())
             {
-                if (parser.isWs())
+                if (parser.isSpace())
                     continue;
                 final switch (state)
                 {
@@ -482,7 +482,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                 switch (state)
                 {
                     case ColumnsState.name:
-                        if (parser.isWs() && !parser.lexer.empty)
+                        if (parser.isSpace() && !parser.lexer.empty)
                             continue;
                         if (!parser.expectToken(TokenType.id))
                             state = ColumnsState.fault;
@@ -500,7 +500,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                             state = ColumnsState.name;
                         else if (parser.hasChr(' '))
                             state++;
-                        else if (parser.isNl || parser.lexer.empty)
+                        else if (parser.isNewLine || parser.lexer.empty)
                         {
                             state = ColumnsState.ok;
                             return;
@@ -508,7 +508,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         continue;
 
                     case ColumnsState.tags:
-                        if (parser.isNl)
+                        if (parser.isNewLine)
                         {
                             state = ColumnsState.ok;
                         }
@@ -609,7 +609,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         {
             for(; !empty; parser.lexer.popFront())
             {
-                if (parser.isWs)
+                if (parser.isSpace)
                 {
                     if (!parser.lexer.empty)
                         continue;
@@ -627,7 +627,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                             else
                                 parser.lexer.popFront();
                         }
-                        else if (parser.isNl)
+                        else if (parser.isNewLine)
                         {
                             value = AnyTag(Tag.init);
                             state++;
@@ -657,7 +657,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                             else
                                 continue;
                         }
-                        else if (parser.isNl)
+                        else if (parser.isNewLine)
                         {
                             state = RowsState.ok;
                         }
@@ -882,7 +882,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                 final switch (state)
                 {
                     case NameValueState.name:
-                        if (parser.isWs)
+                        if (parser.isSpace)
                             continue;
                         if (!parser.expectToken(TokenType.id))
                         {
@@ -911,7 +911,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         return;
 
                     case NameValueState.value:
-                        if (parser.isWs)
+                        if (parser.isSpace)
                             continue;
                         type = Type.nameValue;
                         pair.value = AnyTag(*parser);
@@ -1181,7 +1181,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         {
             for(; !empty; parser.lexer.popFront())
             {
-                if (parser.isWs)
+                if (parser.isSpace)
                     continue;
                 eval:
                 switch(state)
@@ -1304,7 +1304,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         {
             for(; !empty; parser.lexer.popFront())
             {
-                if (parser.isWs)
+                if (parser.isSpace)
                     continue;
                 switch(state)
                 {
@@ -1437,7 +1437,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
             int markCnt = 0;
             for(; !empty; parser.lexer.popFront())
             {
-                if (parser.isWs)
+                if (parser.isSpace)
                     continue;
                 eval:
                 switch(state)
@@ -1455,7 +1455,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         }
                         else
                         {
-                            if (parser.isNl)
+                            if (parser.isNewLine)
                             {
                                 parser.lexer.popFront();
                                 state++;
@@ -1603,25 +1603,25 @@ private:
 
     dchar chr() pure
     {
-        return token.chr;
+        return token.curChar;
     }
 
-    bool hasChr(dchar c)  pure
+    bool hasChr(dchar c) pure
     {
         return token.hasChr(c);
     }
 
-    @property bool isWs()  pure
+    @property bool isSpace() pure
     {
-        return token.isWs;
+        return token.isSpace;
     }
 
-    @property bool isNl() pure
+    @property bool isNewLine() pure
     {
-        return token.isNl;
+        return token.isNewLine;
     }
 
-    bool isScalar()
+    bool isScalar() pure
     {
         return token.isScalar;
     }

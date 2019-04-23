@@ -364,8 +364,7 @@ struct Num
 }
 unittest
 {
-    Num n;
-    n = 100.0;
+    Num n = 100.0;
     assert(n == 100.0);
     Num x = cast(Num) 42;
     assert(x == 42);

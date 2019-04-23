@@ -72,7 +72,7 @@ private:
         auto a = parseAnd(lexer);
         for(; !lexer.empty; lexer.popFront())
         {
-            if (lexer.front.isWs)
+            if (lexer.front.isSpace)
                 continue;
             if (lexer.front.isOf(TokenType.id, "or".tag))
             {
@@ -80,7 +80,7 @@ private:
                 auto b = parseOr(lexer, group);
                 return Or(move(a), move(b));
             }
-            else if (lexer.front.isChar && !group)
+            else if (lexer.front.isEmpty && !group)
             {
                 throw InvalidFilterException;
             }
@@ -98,7 +98,7 @@ private:
         auto a = parseTerm(lexer);
         for(; !lexer.empty; lexer.popFront())
         {
-            if (lexer.front.isWs)
+            if (lexer.front.isSpace)
                 continue;
             if (lexer.front.isOf(TokenType.id, "and".tag))
             {
@@ -123,7 +123,7 @@ private:
         for(; !lexer.empty; lexer.popFront())
         {
             eval:
-            if (lexer.front.isWs)
+            if (lexer.front.isSpace)
                 continue;
             switch (state)
             {
@@ -166,7 +166,7 @@ private:
                     return Term(Missing(path));
 
                 case State.cmp:
-                    auto chr = lexer.front.isChar ?  lexer.front.chr : dchar.init;
+                    auto chr = lexer.front.isEmpty ?  lexer.front.curChar : dchar.init;
                     bool hasEq; 
                     if (chr == '<' || chr == '>' || chr == '=' || chr == '!')
                     {
@@ -185,7 +185,7 @@ private:
                         }
                         for(; !lexer.empty; lexer.popFront())
                         {
-                            if (lexer.front.isWs)
+                            if (lexer.front.isSpace)
                                 continue;
                             if (lexer.front.isScalar || lexer.front.type == TokenType.id)
                             {
