@@ -339,6 +339,11 @@ struct Num
         return d == this.val && this.unit == string.init;
     }
 
+    void opAssign(double val)
+    {
+        this.val = val;
+    }
+
     @property bool isNaN() const
     {
         import std.math : isNaN;
@@ -364,8 +369,10 @@ struct Num
 }
 unittest
 {
-    Num n = 100.0;
+    Num n = 100.0f;
     assert(n == 100.0);
+    n += 2;
+    assert(n == 102.0);
     Num x = cast(Num) 42;
     assert(x == 42);
     assert(x != 2);
