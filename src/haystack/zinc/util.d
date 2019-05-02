@@ -16,7 +16,7 @@ struct LookAhead(Range)
 if (isInputRange!Range && is(ElementEncodingType!Range : char))
 {
     import core.memory              : GC;
-    import std.utf                  : encode;
+    import std.utf                  : byChar, encode; 
     import std.internal.scopebuffer : ScopeBuffer;
 
     this()(auto ref Range range)
@@ -98,8 +98,7 @@ if (isInputRange!Range && is(ElementEncodingType!Range : char))
         }
         else
         {
-            buf = _scratchBuf[0..$]; 
-            GC.addRange(buf.ptr, buf.length, typeid(buf));
+            buf = _scratchBuf[0..$].dup(); 
             initStash();
         }
         return cast(string) buf;
@@ -111,43 +110,43 @@ if (isInputRange!Range && is(ElementEncodingType!Range : char))
         _scratchBuf.free();
         initStash();
     }
-    /// True if suplied string is found in the underlying Input range
-    /// If not found, it allows the StashInput to continue iteration from
-    /// the original position the Input range was when the call was performed.
-    bool find(string s, bool keepStash = false)
+
+    /**
+    True if suplied string is found in the underlying Input range
+    If not found, it allows the `LookAhead` to continue iteration from
+    the original position the Input range was when the call was performed.
+    */
+    bool find(string search, bool keepStash = false)
     {
-        import std.utf      : byChar; 
         import std.range    : chain, refRange;
 
-        if (s.empty)
+        if (search.empty)
             return false;
-        // here because std version has some const issues
-        struct RefRange
+        
+        static struct WrapRangePtr
         {
             this(R* r) { this.r = r; }
-
             @property bool empty() { return (*r).empty; }
-            @property auto front() { return (*r).front; }
+            @property char front() { return (*r).front; }
             void popFront() { (*r).popFront(); }
             
             alias R = typeof(_range);
             R* r;
         }
         
-        auto temp   = _scratchSlice.byChar();
-        auto ror    = chain(refRange(&temp), RefRange(&_range));
-        size_t cnt;
-
-        while (!ror.empty)
+        auto bufSlice   = _scratchSlice.byChar();
+        auto wholeRange = chain(refRange(&bufSlice), WrapRangePtr(&_range));
+        size_t count    = 0;
+        while (!wholeRange.empty)
         {
-            if (cnt >= s.length || s[cnt] != ror.front)
+            if (count >= search.length || search[count] != wholeRange.front)
                 break;
-            if (temp.empty)
-                stash(ror.front, true);
-            cnt++;
-            ror.popFront;
+            if (bufSlice.empty)
+                stash(wholeRange.front, true);
+            wholeRange.popFront;
+            count++;
         }
-        bool found = (cnt == s.length);
+        bool found = (count == search.length);
         if (!found && hasStash) // keep look ahead buffer
             save();
         else if (!keepStash) // init stash buffer
@@ -228,28 +227,22 @@ unittest
 
 ///////////////////////////////////////////////////////////////
 //
-// Non decoding char range primitive
+// Non decoding char[] range primitives
 //
 ///////////////////////////////////////////////////////////////
 
-@property char front()(auto ref const(char[]) range)
+@property char front()(inout(char)[] range)
 {
     assert(!range.empty);
     return range[0];
 }
 
-@property bool empty()(auto ref const(char[]) range)
+@property bool empty()(inout(char)[] range)
 {
     return !range.length;
 }
 
-@property void popFront(ref const(char)[] range)
-{
-    assert(!range.empty);
-    range = range[1..$];
-}
-
-@property void popFront(ref string range)
+@property void popFront(ref inout(char)[] range)
 {
     assert(!range.empty);
     range = range[1..$];
@@ -286,20 +279,20 @@ struct Own(T) if (is (T == struct))
 
     ~this()
     {
-        if (this.val !is null)
-        {
-            import std.traits : hasMember;
-            static if (hasMember!(T, "__dtor"))
-                val.__dtor();
-            free(val);
-            GC.removeRange(val);
-            destroy(val);
-        }
+        import std.traits : hasMember;
+        if (this.val is null)
+            return;
+
+        static if (hasMember!(T, "__dtor"))
+            val.__dtor();
+        free(val);
+        GC.removeRange(val);
+        destroy(val);
     }
 
     void opAssign(T)(T o)
     {
-        destroy(this);
+        destroy(false)(this);
         val = cast(T*) malloc(T.sizeof);
         moveEmplace(o, *val);
         static if (hasIndirections!T)
@@ -313,7 +306,7 @@ struct Own(T) if (is (T == struct))
         o.val = null;
     }
     
-    @property bool isNull() const
+    @property bool isNull() pure const
     {
         return this.val is null; 
     }
@@ -338,7 +331,7 @@ unittest
     assert(x.b);
     Own!X y = Own!X(true); 
     x = y.move();
-    assert(y.val is null);
+    assert(y.isNull);
     x.b = false;
     auto z = Own!X(*x.move());
     assert(x.isNull);
