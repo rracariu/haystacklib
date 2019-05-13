@@ -8,13 +8,11 @@ Authors:   Radu Racariu
 **/
 module haystack.zinc.filter;
 
-import std.algorithm : move;
-import std.functional : equalTo, lessThan, greaterThan;
-import std.traits : isSomeChar;
-import std.range.primitives : empty, isInputRange, ElementEncodingType;
+import std.algorithm    : move;
+import std.functional   : equalTo, lessThan, greaterThan;
 
 import haystack.tag;
-import haystack.zinc.util : Own;
+import haystack.zinc.util : isCharInputRange, Own;
 import haystack.zinc.lexer;
 
 /// Filter parsing exception
@@ -36,9 +34,9 @@ alias HaystackFilter = Filter!string;
 Haystack filter
 */
 struct Filter(Range)
-if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
+if (isCharInputRange!Range)
 {
-    alias Lexer = ZincLexer!(Range);
+    alias Lexer = ZincLexer!Range;
 
     this(Range r)
     {
@@ -46,6 +44,11 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         if (lexer.empty)
             throw InvalidFilterException;
         or = parseOr(lexer);
+    }
+    
+    this(ref return scope typeof(this) other)
+    {
+        this.or = Or(other.or);
     }
     @disable { this(); this(this); }
 
@@ -59,18 +62,19 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         return or.toHash();
     }
 
-    bool opEquals(ref const(Filter) other) const nothrow
+    bool opEquals()(auto ref const Filter other) const
     {
         return or == other.or;
     }
 
 private:
     Or or; // start node
-    // parse or expression
+
+    // parse `or` expression
     Or parseOr(ref Lexer lexer, bool group = false)
     {
         auto a = parseAnd(lexer);
-        for(; !lexer.empty; lexer.popFront())
+        for (; !lexer.empty; lexer.popFront())
         {
             if (lexer.front.isSpace)
                 continue;
@@ -92,11 +96,11 @@ private:
         return Or(move(a));
     }
 
-    // parse and expression
+    // parse `and` expression
     And parseAnd(ref Lexer lexer)
     {
         auto a = parseTerm(lexer);
-        for(; !lexer.empty; lexer.popFront())
+        for (; !lexer.empty; lexer.popFront())
         {
             if (lexer.front.isSpace)
                 continue;
@@ -117,12 +121,15 @@ private:
     // parse a term
     Term parseTerm(ref Lexer lexer)
     {
+        import std.traits   : EnumMembers;
+
         enum State { parens, has, missing, cmp }
         State state;
         Path crtPath = void;
-        for(; !lexer.empty; lexer.popFront())
+
+        for (; !lexer.empty; lexer.popFront())
         {
-            eval:
+            parseStart:
             if (lexer.front.isSpace)
                 continue;
             switch (state)
@@ -131,7 +138,7 @@ private:
                     if (!lexer.front.hasChr('('))
                     {
                         state   = State.has;
-                        goto eval;
+                        goto parseStart;
                     }
                     else
                     {
@@ -158,7 +165,7 @@ private:
                         }
                         crtPath = parsePath(lexer);
                         state = State.cmp;
-                        goto eval;
+                        goto parseStart;
                     }
                 
                 case State.missing:
@@ -173,17 +180,15 @@ private:
                         if (lexer.empty)
                              throw InvalidFilterException;
                         lexer.popFront();
-                        if (chr == '<' || chr == '>' || chr == '!' || chr == '=')
+                        if (lexer.front.hasChr('='))
                         {
-                            if (lexer.front.hasChr('='))
-                            {
-                                hasEq = true;
-                                lexer.popFront();
-                            }
-                            if (lexer.empty || (chr == '=' && !hasEq))
-                                throw InvalidFilterException;
+                            hasEq = true;
+                            lexer.popFront();
                         }
-                        for(; !lexer.empty; lexer.popFront())
+                        if (lexer.empty || (chr == '=' && !hasEq))
+                            throw InvalidFilterException;
+                        
+                        for (; !lexer.empty; lexer.popFront())
                         {
                             if (lexer.front.isSpace)
                                 continue;
@@ -207,23 +212,23 @@ private:
                                         throw InvalidFilterException;
                                 }
                                 lexer.popFront();
-                                import std.traits : EnumMembers;
+
                                 string op;
-                                foreach (m; EnumMembers!(Cmp.Op))
+                                foreach (opEnum; EnumMembers!(Cmp.Op))
                                 {
                                     if (!hasEq)
                                     {
-                                        if (m[0] == chr)
+                                        if (opEnum[0] == chr)
                                         {
-                                            op = m;
+                                            op = opEnum;
                                             break;
                                         }
                                     }
                                     else
                                     {
-                                        if (m[0] == chr && m[$ - 1] == '=')
+                                        if (opEnum[0] == chr && opEnum[$ - 1] == '=')
                                         {
-                                            op = m;
+                                            op = opEnum;
                                             break;
                                         }
                                     }
@@ -251,38 +256,35 @@ private:
     Path parsePath(ref Lexer lexer)
     {
         import std.array : appender;
+
         auto buf = appender!(string[])();
         enum State { id, sep }
         State state;
+
         loop:
-        for(; !lexer.empty; lexer.popFront())
+        for (; !lexer.empty; lexer.popFront())
         {
             switch (state)
             {
                 case State.id:
                     if (!lexer.front.isId)
                         throw InvalidFilterException;
-                    else
-                    {
-                        auto name = lexer.front.value!Str;
-                        buf.put(name.val);
-                        state = State.sep;
-                    }
+                    
+                    auto name = lexer.front.value!Str;
+                    buf.put(name.val);
+                    state = State.sep;
                     break;
 
                 case State.sep:
-                    if (lexer.front.hasChr('-'))
-                    {
-                        if (lexer.empty)
-                            throw InvalidFilterException;
-                        lexer.popFront();
-                        if (lexer.front.hasChr('>') && !lexer.empty)
-                            state = State.id;
-                        else
-                            throw InvalidFilterException;
-                    }
-                    else
+                    if (!lexer.front.hasChr('-'))
                         break loop;
+                    if (lexer.empty)
+                        throw InvalidFilterException;
+                    lexer.popFront();
+                    if (lexer.front.hasChr('>') && !lexer.empty)
+                        state = State.id;
+                    else
+                        throw InvalidFilterException;
                     break;
 
                 default:
@@ -345,6 +347,36 @@ unittest
 
     filter = StrFilter(`(a or b) and c`);
     assert(filter.eval(["b": marker, "c": marker], &EmptyResolver));
+
+    assert(StrFilter(`a or b`) == StrFilter(`a or b`));
+
+    filter  = StrFilter("age == 6 and foo");
+    StrFilter* filterCopy = new StrFilter(filter);
+    assert(filter.eval(["foo": marker, "age": 6.tag], &EmptyResolver));
+    assert(filterCopy.eval(["foo": marker, "age": 6.tag], &EmptyResolver));
+
+    assert(filterCopy.toHash() == filter.toHash());
+    assert(*filterCopy == filter);
+
+    static struct PtrWrap
+    {
+        StrFilter* p;
+        
+        size_t toHash() const nothrow
+        {
+            return p.toHash();
+        }
+
+        bool opEquals()(auto ref const scope PtrWrap other) const scope
+        in (p !is null && other.p !is null)
+        {
+            return *p == *other.p;
+        }
+    }
+
+    string[PtrWrap] map;
+    map[PtrWrap(filterCopy)] = "a";
+    assert(PtrWrap(&filter) in map);
 }
 
 /**
@@ -366,11 +398,19 @@ struct Or
         this.b = move(b);
     }
 
+    this(ref return scope Or other)
+    {
+        this.a = And(other.a);
+        if (other.b.isNull)
+            return;
+        this.b = Or(*other.b);
+    }
+
     @disable this(this);
 
     bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
-        assert(a.isValid, "Invalid 'or' experssion.");
+        assert(a.isValid, "Invalid 'or' expression.");
         if (!b.isNull)
             return a.eval(obj, resolver) || b.eval(obj, resolver);
         else 
@@ -384,7 +424,7 @@ struct Or
         return prime * hash + (b.isNull ? 0 : b.toHash());
     }
 
-    bool opEquals(ref const(Or) other) const nothrow
+    bool opEquals()(auto ref const Or other) const nothrow
     {
         return a == other.a && b == other.b;
     }
@@ -409,6 +449,14 @@ struct And
         this.b = move(b);
     }
 
+    this(ref return scope And other)
+    {
+        this.a = Term(other.a);
+        if (other.b.isNull)
+            return;
+        this.b = And(*other.b);
+    }
+
     @disable this(this);
 
     @property bool isValid() const
@@ -425,14 +473,14 @@ struct And
             return a.eval(obj, resolver);
     }
 
-    size_t toHash() const nothrow
+    @safe size_t toHash() const nothrow
     {
         enum prime  = 31;
         size_t hash = prime * a.toHash();
         return prime * hash + (b.isNull ? 0 : b.toHash());
     }
 
-    bool opEquals(ref const(And) other) const nothrow
+    bool opEquals()(auto ref const And other) const nothrow
     {
         return a == other.a && b == other.b;
     }
@@ -476,6 +524,28 @@ struct Term
         val.cmp = cmp;
     }
 
+    this(ref return scope Term other)
+    {
+        this.type   = other.type;
+        final switch (type)
+        {
+            case Type.or:
+                this.val.or         = Or(*other.val.or);
+                break;
+            case Type.has:
+                this.val.has        = Has(other.val.has);
+                break;
+            case Type.missing:
+                this.val.missing    = Missing(other.val.missing);
+                break;
+            case Type.cmp:
+                this.val.cmp        = Cmp(other.val.cmp);
+                break;
+            case Type.empty:
+                break;
+        }
+    }
+
     static Term makeEmpty()
     {
         return Term(Type.empty);
@@ -498,7 +568,7 @@ struct Term
         }
     }
 
-    size_t toHash() const nothrow
+    @trusted size_t toHash() const nothrow
     {
         final switch (type)
         {
@@ -515,7 +585,7 @@ struct Term
         }
     }
 
-    bool opEquals(ref const(Term) other) const nothrow
+    bool opEquals()(auto ref const Term other) const nothrow
     {
         if (other.type != type)
             return false;
@@ -606,6 +676,9 @@ struct Path
         else
             alias Type = Unqual!Obj;
         
+        if (segments.length == 0 || segments[0].length == 0)
+            return Tag.init;
+
         static if (is(Type : Dict))
         {
             if (segments.length == 1)
@@ -617,10 +690,13 @@ struct Path
         }
         else
         {
-            if (segments.length == 0 || segments[0].length == 0)
-                return Tag.init;
             return resolver(obj, this);
         }
+    }
+
+    @property string root() const
+    {
+        return _segments[0];
     }
     
     @property ref const(string[]) segments() const
@@ -643,17 +719,17 @@ struct Path
         return hash;
     }
 
-    bool opEquals(ref const(Path) other) const nothrow
+    bool opEquals()(auto ref const Path other) const nothrow
     {
         return _segments == other._segments;
     }
     
 private:
+
     Tag dictResolver(const(Dict) dict) const
+    in (segments.length)
     {
-        if (segments.length == 0 || segments[0].length == 0)
-            return Tag.init;
-        return dict.get(segments[0], Tag.init);
+        return dict.get(root, Tag.init);
     }
 
     string[] _segments;
@@ -667,7 +743,7 @@ unittest
     Tag rangeResolver (typeof(range) obj, ref const(Path) path)
     {
         import std.algorithm : find;
-        return obj.find!(kv => kv.key == path.segments[0]).front.value;
+        return obj.find!(kv => kv.key == path.root).front.value;
     }
     assert(path.resolve(range, &rangeResolver) == marker);
 
@@ -675,7 +751,7 @@ unittest
     
     Tag resolver(ref const(Dict) dict, ref const(Path) path)
     {
-        foreach(i, ref p; path.segments)
+        foreach (i, ref p; path.segments)
         {
             if (i == 0)
             {
@@ -713,6 +789,11 @@ struct Has
     {
         this.path = path;
     }
+
+    this(ref return scope Has other)
+    {
+        this.path = other.path;
+    }
     @disable this();
 
     bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
@@ -722,7 +803,7 @@ struct Has
 
     @property Dict tags()
     {
-        return [path.segments[0]: marker];
+        return [path.root: marker];
     }
 
     size_t toHash() const nothrow
@@ -730,7 +811,7 @@ struct Has
         return 31 * path.toHash();
     }
 
-    bool opEquals(ref const(Has) other) const nothrow
+    bool opEquals()(auto ref const Has other) const nothrow
     {
         return path == other.path;
     }
@@ -758,6 +839,11 @@ struct Missing
     this(Path path)
     {
         this.has = path;
+    }
+
+    this(ref return scope Missing other)
+    {
+        this.has = Has(other.has);
     }
     @disable this();
 
@@ -791,37 +877,43 @@ struct Cmp
         greaterOrEq = ">="
     }
 
-    this(string path, string op, Tag val)
+    this(string path, string op, Tag constant)
     {
-        this(Path(path), cast(Op) op, val);
+        this(Path(path), cast(Op) op, constant);
     }
 
-    this(Path path, string op, Tag val)
+    this(Path path, string op, Tag constant)
     {
-        this(path, cast(Op) op, val);
+        this(path, cast(Op) op, constant);
     }
 
-    this(Path path, Op op, Tag val)
+    this(Path path, Op op, Tag constant)
     {
-        this.path = path;
-        this.op = op;
-        this.val = val;
+        this.path       = path;
+        this.op         = op;
+        this.constant   = constant;
+    }
+
+    this(ref return scope Cmp other)
+    {
+        this.path       = other.path;
+        this.op         = other.op;
+        this.constant   = other.constant;
     }
     @disable this();
 
     bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
-        auto v = path.resolve(obj, resolver);
-        return predicate(v);
+        auto val = path.resolve(obj, resolver);
+        return predicate(val);
     }
 
     @property Dict tags()
     {
-        foreach(Type; Tag.AllowedTypes)
+        foreach (Type; Tag.AllowedTypes)
         {
-            Type t = Type.init;
-            if (typeid(Type) == val.type)
-                return [path.segments[$ - 1]: Tag(t)];
+            if (constant.peek!Type)
+                return [path.segments[$ - 1]: Tag(Type.init)];
         }
         return [path.segments[$]: marker];
     }
@@ -832,16 +924,16 @@ struct Cmp
         size_t hash = prime * path.toHash();
         foreach (c; op)
             hash = (hash * prime) + c;
-        return prime * hash + val.toHash();
+        return prime * hash + constant.toHash();
     }
 
-    bool opEquals(ref const(Cmp) other) const nothrow
+    bool opEquals()(auto ref const Cmp other) const nothrow
     {
-        if (path != other.path || op != other.op)
+        if (op != other.op || path != other.path)
             return false;
         try
-            return val == other.val;
-        catch(Exception e)
+            return constant == other.constant;
+        catch (Exception e)
             return false;
     }
 
@@ -855,23 +947,23 @@ private:
         final switch(op)
         {
             case Op.eq:
-                return equalTo(cmp, val);
+                return equalTo(cmp, constant);
             case Op.notEq:
-                return !equalTo(cmp, val);
+                return !equalTo(cmp, constant);
             case Op.less:
-                return lessThan(cmp, val);
+                return lessThan(cmp, constant);
             case Op.lessOrEq:
-                return lessThan(cmp, val) || equalTo(cmp, val); 
+                return lessThan(cmp, constant) || equalTo(cmp, constant); 
             case Op.greater:
-                return greaterThan(cmp, val);
+                return greaterThan(cmp, constant);
             case Op.greaterOrEq:
-                return greaterThan(cmp, val) || equalTo(cmp, val);
+                return greaterThan(cmp, constant) || equalTo(cmp, constant);
         }
     }
 
     Path path;
     Op op;
-    Tag val;
+    Tag constant;
 }
 unittest
 {

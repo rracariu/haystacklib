@@ -7,13 +7,17 @@ License:   $(LINK2 www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 Authors:   Radu Racariu
 **/
 module haystack.zinc.util;
+import std.traits : isSomeChar;
 import std.range.primitives : isInputRange,
                               ElementEncodingType;
+
+enum isCharInputRange(Range) = isInputRange!Range && isSomeChar!(ElementEncodingType!Range);
+
 /**
 A char range that allows look ahead buffering and can also collect a buffer of items
 **/
 struct LookAhead(Range)
-if (isInputRange!Range && is(ElementEncodingType!Range : char))
+if (isCharInputRange!Range)
 {
     import core.memory              : GC;
     import std.utf                  : byChar, encode; 
@@ -258,7 +262,7 @@ struct Own(T) if (is (T == struct))
     import std.conv         : emplace;
     import std.typecons     : Proxy;
     import std.algorithm    : moveEmplace;
-    import std.traits       : hasIndirections;
+    import std.traits       : hasIndirections, hasMember;
     import core.stdc.stdlib : malloc, free;
 
     this(T t)
@@ -279,7 +283,6 @@ struct Own(T) if (is (T == struct))
 
     ~this()
     {
-        import std.traits : hasMember;
         if (this.val is null)
             return;
 
@@ -292,7 +295,7 @@ struct Own(T) if (is (T == struct))
 
     void opAssign(T)(T o)
     {
-        destroy(false)(this);
+        destroy(this);
         val = cast(T*) malloc(T.sizeof);
         moveEmplace(o, *val);
         static if (hasIndirections!T)
@@ -309,6 +312,25 @@ struct Own(T) if (is (T == struct))
     @property bool isNull() pure const
     {
         return this.val is null; 
+    }
+
+    bool opEquals()(auto ref const Own!T other) const
+    {
+        if (this.isNull || other.isNull)
+        {
+            if (this.isNull && other.isNull)
+                return true;
+            return false;
+        }
+        return *this.val == *other.val;
+    }
+
+    static if (hasMember!(T, "toHash"))
+    @safe size_t toHash() const nothrow
+    {
+        if (isNull)
+            return 0;
+        return (*val).toHash();
     }
 
     mixin Proxy!val;

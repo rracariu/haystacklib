@@ -17,8 +17,6 @@ import std.ascii            : isLower,
                               isControl,
                               isHexDigit,
                               isWhite;
-import std.range.primitives : isInputRange, ElementEncodingType;
-import std.traits           : isSomeChar;
 
 /// Types of tokens that the lexer can provide
 enum TokenType 
@@ -177,7 +175,7 @@ private:
 Lexes Zinc tokens from some char $(D InputRange)
 */
 struct ZincLexer(Range) 
-if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
+if (isCharInputRange!Range)
 {
     this(Range r, int ver = 3)
     {
@@ -1361,10 +1359,10 @@ package:
                         return false;
                     lng = crtToken.data.val!Num;
                     state = State.done;
-                    break loop;
+                    continue;
 
                 case State.done:
-                    assert(false);
+                    break loop;
             }
         }
         if (state != State.done)
@@ -1553,11 +1551,11 @@ private void assertTokenEmpty(string data, int ver = 3)
 
 package void dumpLexer(Lexer)(auto ref Lexer lex)
 {
-    import std.algorithm : move;
-    import std.stdio : writeln;
-    import std.conv : to;
-    foreach (ref tk; move(lex))
+    import std.algorithm    : move;
+    import std.stdio        : writeln;
+    import std.conv         : to;
+    foreach (ref tk; lex.move())
     {
-        writeln("Token type: ", tk.type, " value: '", tk.type != Lexer.TokenType.none ? tk.tag.toStr() : to!string(tk.chr), "'");
+        writeln("Token type: ", tk.type, ", value: ", tk.type != TokenType.empty ? tk.tag.toStr() : "'" ~ to!string(tk.curChar) ~ "'");
     }
 }
