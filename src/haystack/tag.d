@@ -215,12 +215,29 @@ struct Tag
     // Generate equality operator for all allowed types
     static foreach (T; AllowedTypes)
     {
-        bool opEquals()(auto ref const(T) value) const
+        static if (!is(T : Dict) && !is(T : List))
         {
-            if (this.curType != TagTypeForType!T)
-                return false;
-            return getValueForType!T() == cast() value;
+            bool opEquals()(auto ref const(T) value) const
+            {
+                if (this.curType != TagTypeForType!T)
+                    return false;
+                return getValueForType!T() == (cast() value);
+            }
         }
+    }
+
+    bool opEquals(const(List) value) const
+    {
+        if (this.curType != Type.List)
+            return false;
+        return (cast(List) getValueForType!List()) == (cast(List) value);
+    }
+    
+    bool opEquals(const(Dict) value) const
+    {
+        if (this.curType != Type.Dict)
+            return false;
+        return (cast(Dict) getValueForType!Dict()) == (cast(Dict) value);
     }
 
     size_t toHash() pure const @safe nothrow
@@ -326,7 +343,7 @@ template visit(Funcs...) if (Funcs.length > 0)
         {
             static if (Parameters!func.length) // check if function has paramas
             {{
-                alias Return    = Parameters!func; // function return type
+                alias Return    = ReturnType!func; // function return type
                 alias Param     = Parameters!(func)[0]; // fist function param type
                 
                 static foreach (T; Self.AllowedTypes) // iterate all Tag alllowed types
@@ -338,18 +355,37 @@ template visit(Funcs...) if (Funcs.length > 0)
                             auto val = tag.getValueForType!T(); // det the `Tag` value for `T`
                             // call the handler with the current `Tag` value
                             static if (is(Return == void))
+                            {
                                 func(val);
+                                return;
+                            }
                             else
+                            {
                                 return func(val);
+                            }
                         }
                     }
                 }
             }}
+            else
+            {
+                alias VisitReturn   = typeof(return);
+                alias Return        = ReturnType!func;
+                static if (is(VisitReturn == Return))
+                {
+                    return func();
+                }
+                else
+                {
+                    func();
+                    static if (is(VisitReturn == void))
+                        return;
+                    else
+                        return VisitReturn.init; 
+                }
+            }
         }
-        static if (is(typeof(return) == void))
-            return;
-        else
-            return typeof(return).init;
+        assert(false, "Can't match any handle for this Tag");
     }
 }
 unittest
@@ -360,6 +396,9 @@ unittest
 
     string str = t.visit!((Str s) => s.val);
     assert(str == "a string");
+
+    t.visit!((Num s) => s.val, () => str = "");
+    assert(str == "");
 }
 
 Str toStr()(auto ref const(Tag) tag)
