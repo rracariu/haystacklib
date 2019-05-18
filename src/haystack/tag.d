@@ -184,7 +184,7 @@ struct Tag
     }
 
     /**
-    Returns the current `TagType`
+    Returns the string representation of the current value
     */
     string toString() inout
     {
@@ -212,7 +212,7 @@ struct Tag
         return false;
     }
 
-    // Generate equality operator for all allowed types
+    // Generate equality operator allowed types, except List and Dict
     static foreach (T; AllowedTypes)
     {
         static if (!is(T : Dict) && !is(T : List))
