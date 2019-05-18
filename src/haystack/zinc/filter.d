@@ -195,7 +195,7 @@ private:
                             if (lexer.front.isScalar || lexer.front.type == TokenType.id)
                             {
                                 Tag tag = cast(Tag) lexer.front.tag;
-                                if (tag.peek!Num)
+                                if (tag.hasValue!Num)
                                 {
                                     auto num = tag.get!Num; 
                                     if (num.isNaN || num.isINF)
@@ -912,7 +912,7 @@ struct Cmp
     {
         foreach (Type; Tag.AllowedTypes)
         {
-            if (constant.peek!Type)
+            if (constant.hasValue!Type)
                 return [path.segments[$ - 1]: Tag(Type.init)];
         }
         return [path.segments[$]: marker];

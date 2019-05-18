@@ -1694,7 +1694,7 @@ unittest
 
         auto grid = ZincStringParser(str).asGrid;
         assert(grid.length == 1);
-        auto x = grid[0]["col1"].val!Dict;
+        auto x = grid[0]["col1"].get!Dict;
         assert(grid[0]["col1"] == ["foo": true.tag].tag);
     }
 

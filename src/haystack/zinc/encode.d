@@ -7,6 +7,7 @@ License:   $(LINK2 www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 Authors:   Radu Racariu
 **/
 module haystack.zinc.encode;
+
 import haystack.tag;
 import std.traits           : isSomeChar;
 import std.range.primitives : isOutputRange;
@@ -358,7 +359,6 @@ Returns: the writter OutputRange
 void encode(R) (auto ref const(Tag) val, auto ref R writer, SortedKeys sorted = SortedKeys.no)
 if (isOutputRange!(R, char))
 {
-    import std.variant  : VariantN, This;
     import std.traits   : fullyQualifiedName, moduleName;
 
     // null value
@@ -367,11 +367,10 @@ if (isOutputRange!(R, char))
         writer.put('N');
         return;
     }
-    immutable isGrid = val.peek!Grid !is null;
+    immutable isGrid = val.hasValue!Grid;
     if (isGrid)
         writer.put("<<\n");
     Tag value = cast(Tag) val;
-    import std.variant : visit;
     // encode current value
     value.visit!(
                     (ref Marker v)  => v.encode(writer),
@@ -386,7 +385,7 @@ if (isOutputRange!(R, char))
                     (ref Date v)    => v.encode(writer),
                     (ref Time v)    => v.encode(writer),
                     (ref SysTime v) => v.encode(writer),
-                    (ref TagList v) => v.encode(writer),
+                    (ref List v)    => v.encode(writer),
                     (ref Dict v)    => v.encode(writer, DictBraces.yes, sorted),
                     (ref Grid v)    => v.encode(writer, sorted)
                     )();
@@ -406,7 +405,7 @@ Encodes TagList as [1, 2, 3].
 Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
-void encode(R) (auto ref const(TagList) val, auto ref R writer)
+void encode(R) (const(List) val, auto ref R writer)
 if (isOutputRange!(R, char))
 {
     writer.put('[');
@@ -448,7 +447,7 @@ if (isOutputRange!(R, char))
     void encodeEntry(string name, ref const(Tag) value)
     {
         writer.put(name);
-        if (!value.peek!Marker)
+        if (!value.hasValue!Marker)
         {
             writer.put(':');
             value.encode(writer, sorted);

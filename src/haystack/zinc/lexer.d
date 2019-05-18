@@ -1371,7 +1371,7 @@ package(haystack):
                     if (cur != ',')
                         return false;
                     
-                    lat = crtToken.data.val!Num;
+                    lat = crtToken.data.get!Num;
                     input.clearStash();
                     state = State.lng;
                     continue;
@@ -1381,7 +1381,7 @@ package(haystack):
                         return false;
                     if (cur != ')')
                         return false;
-                    lng = crtToken.data.val!Num;
+                    lng = crtToken.data.get!Num;
                     state = State.done;
                     continue;
 

@@ -421,3 +421,102 @@ unittest
     }
     assert(i == 0);
 }
+
+/**
+Implements a safe discriminating union, aka sum type.
+*/
+mixin template SumType(alias Type)
+{
+    import std.traits       : EnumMembers, hasMember;
+    import std.conv         : to;
+    import std.meta         : AliasSeq, ApplyRight, Filter, staticMap, staticIndexOf;
+
+    /// Value of the empty type
+    enum emptyType = cast(Type) uint.max;
+
+    // Type names as string of the allowed types
+    alias AllowedTypeNames = staticMap!(aliasToStr, EnumMembers!Type);
+
+    /// All allowed `Tag` types
+    alias Number        = Num;
+    alias DateTime      = SysTime;
+    alias AllowedTypes  = staticMap!(StrToSymbol, AllowedTypeNames);
+
+    // Sanity check
+    static assert(AllowedTypes.length == EnumMembers!Type.length,
+                  "Missmatch sizes of `AllowedTypes` and `TagType`");
+
+    /// Check if type `T` is a supported type
+    enum allowed(T) = staticIndexOf!(T, AllowedTypes) != -1;
+
+private:
+
+    // Converts symbol to string
+    enum aliasToStr(alias T) = to!string(T);
+
+    // Convert a string to symbol
+    template StrToSymbol(alias S)
+    {
+        mixin(`alias StrToSymbol = `~to!string(S)~`;`);
+    }
+
+    // Get the `Value` field name for a `Type`
+    enum valNameForType(T) = `val` ~ AllowedTypeNames[staticIndexOf!(T, AllowedTypes)];
+    // Get the `TagType` enum for a `Type`
+    alias TagTypeForType(T) = EnumMembers!Type[staticIndexOf!(T, AllowedTypes)];
+
+    // Check if one of the `AllowedType`s has a given member
+    template TypeHasMemeber(string name)
+    {
+        static if (name != "length" && hasMember(Tag, name))
+        {
+            enum TypeHasMemeber = false;
+        }
+        else
+        {
+            enum hasFunc(T) = hasMember!(T, name);
+            alias SupportingTypes = Filter!(ApplyRight!(hasFunc), AllowedTypes);
+
+            static if (SupportingTypes.length != 0)
+                enum TypeHasMemeber = true;
+            else
+                enum TypeHasMemeber = false;
+        }
+    }
+
+    /// Clears the current value
+    void clearCurValue()
+    {
+        if (!hasValue)
+            return;
+
+        static foreach (T; AllowedTypes)
+        {
+            if (curType == TagTypeForType!T)
+                mixin(`value.`~valNameForType!T~`.destroy();`);
+        }
+    }
+
+    /// Sets the value for the type
+    void setValueForType(T)(auto ref T t)
+    {
+        mixin(`value.`~valNameForType!T~` = t;`);
+    }
+
+    /// Gets the value for the type
+    T getValueForType(T)() pure inout
+    {
+        mixin(`return cast(T) value.`~valNameForType!T~`;`);
+    }
+
+    // Storage for all tag type
+    union Value
+    {
+        // generate members for all allowed types
+        static foreach (i, T; AllowedTypes)
+            mixin(T.stringof ~ ` ` ~ valNameForType!T ~ `;`);
+    }
+
+    Value value     = void;
+    Type curType    = emptyType;
+}

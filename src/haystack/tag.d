@@ -8,83 +8,368 @@ Authors:   Radu Racariu
 **/
 
 module haystack.tag;
-import std.variant  : Algebraic, This;
-import std.traits   : Unqual;
-// types that are public imported
+// types that are public imported and part of the API
 public import std.datetime  : TimeOfDay;
 public import std.datetime  : Date;
 public import std.datetime  : DateTime;
 public import std.datetime  : SysTime;
 
-enum TagType
-{
-    Marker,
-    Na,
-    Bool,
-    Number,
-    Str,
-    XStr,
-    Coord,
-    Uri,
-    Ref,
-    Date,
-    Time,
-    DateTime,
-    List,
-    Dict,
-    Grid
-}
+import std.traits   : Unqual;
 
 /************************************************************
 Any haystack value type.
 ************************************************************/
-alias Tag = Algebraic!(Marker,
-                       Na,
-                       Bool,
-                       Num,
-                       Str,
-                       XStr,
-                       Coord,
-                       Uri,
-                       Ref,
-                       Date,
-                       Time,
-                       SysTime,
-                       This[], //  list of zero or more Tags
-                       This[string], // Dict - an associated array of name/value tag pairs
-                       GridImpl!(This[string]) //a haystack grid
-                       );
-alias TagList = Tag[];
+struct Tag
+{
+    import core.exception       : RangeError;
+    import haystack.zinc.util   : SumType;
+    
+    /// This tag allowed types
+    enum Type
+    {
+        Marker,
+        Na,
+        Bool,
+        Number,
+        Str,
+        XStr,
+        Coord,
+        Uri,
+        Ref,
+        Date,
+        Time,
+        DateTime,
+        List,
+        Dict,
+        Grid
+    }
+
+    // Adds the `SumType` traits
+    mixin SumType!Type;
+
+    this(Tag tag)
+    {
+        this.value = tag.value;
+        this.curType = tag.curType;
+    }
+    
+    ref Tag opAssign(Tag val) return
+    {
+        clearCurValue();
+        this.curType = val.curType;
+        static foreach (T; AllowedTypes)
+        {
+            if (curType == TagTypeForType!T)
+            {
+                T t = val.getValueForType!T();
+                setValueForType!T(t);
+            }
+        }
+        return this;
+    }
+
+    // Auto-generate the consturctors and assign operator
+    // for all supported types
+    static foreach (T; AllowedTypes)
+    {
+        this(T t) pure
+        {
+            setValueForType!T(t);
+            this.curType = TagTypeForType!T;
+        }
+
+        ref Tag opAssign(T val) return
+        {
+            clearCurValue();
+            setValueForType!T(val);
+            this.curType = TagTypeForType!T;
+            return this;
+        }
+    }
+    
+    /**
+    Construct a `Tag` from  a string
+    */
+    this(string val)
+    {
+        setValueForType(cast(Str) val);
+        this.curType = Type.Str;
+    }
+    
+    /**
+    Asigns a string to a `Tag`
+    */
+    ref Tag opAssign(string val) return
+    {
+        clearCurValue();
+        setValueForType(cast(Str) val);
+        this.curType = Type.Str;
+        return this;
+    }
+
+    /**
+    Construct a `Tag` from a double
+    */
+    this(double val)
+    {
+        setValueForType(cast(Num) val);
+        this.curType = Type.Number;
+    }
+
+    /**
+    Asigns a double to a `Tag`
+    */
+    ref Tag opAssign(double val) return
+    {
+        clearCurValue();
+        setValueForType(cast(Num) val);
+        this.curType = Type.Number;
+        return this;
+    }
+
+    /**
+    Construct a `Tag` from a bool
+    */
+    this(bool val)
+    {
+        setValueForType(cast(Bool) val);
+        this.curType = Type.Bool;
+    }
+
+    /**
+    Asigns a bool to a `Tag`
+    */
+    ref Tag opAssign(bool val) return
+    {
+        clearCurValue();
+        setValueForType(cast(Bool) val);
+        this.curType = Type.Bool;
+        return this;
+    }
+
+
+    /**
+    Gets the value for the type `T`
+    Returns `T.init` if there is not value or the value is not of type `T` 
+    */
+    T get(T)() pure inout 
+    {
+        if (!hasValue || curType != TagTypeForType!T)
+            return T.init;
+        return getValueForType!T();
+    }
+
+    /**
+    Returns true if there is a value type `T` 
+    */
+    bool hasValue(T)() inout @safe nothrow
+    {
+        return curType == TagTypeForType!T;
+    }
+
+    /**
+    Returns true if there is a value of any type 
+    */
+    bool hasValue() pure inout @safe nothrow
+    {
+        return curType != emptyType;
+    }
+
+    /**
+    Returns the current `Type`
+    */
+    Type type() pure inout @safe nothrow
+    {
+        return curType;
+    }
+
+    /**
+    Returns the current `TagType`
+    */
+    string toString() inout
+    {
+        static foreach (T; AllowedTypes)
+        {
+            if (curType == TagTypeForType!T)
+                return getValueForType!T().toString();
+       }
+        return "";
+    }
+    
+    // Check eqaulity between 2 `Tag`s
+    bool opEquals()(auto ref const(Tag) other) const
+    {
+        if (!this.hasValue && !other.hasValue)
+            return true;
+        if (this.curType != other.curType)
+            return false;
+
+        static foreach (T; AllowedTypes)
+        {
+            if (curType == TagTypeForType!T)
+                return getValueForType!T() == other.getValueForType!T;
+        }
+        return false;
+    }
+
+    // Generate equality operator for all allowed types
+    static foreach (T; AllowedTypes)
+    {
+        bool opEquals()(auto ref const(T) value) const
+        {
+            if (this.curType != TagTypeForType!T)
+                return false;
+            return getValueForType!T() == cast() value;
+        }
+    }
+
+    size_t toHash() pure const @safe nothrow
+    {
+        if (hasValue)
+            return 0;
+
+        static foreach (T; AllowedTypes)
+        {
+            if (curType == TagTypeForType!T)
+            {
+                static if (hasMember!(T, "toHash"))
+                    return getValueForType!T().toHash();
+                else
+                    return ()@trusted { return getValueForType!T().hashOf();}();
+            }
+        }
+        return 0;
+    }
+    
+    int opCmp()(auto ref const(Tag) other) const 
+    {
+        if (!this.hasValue)
+            return -1;
+        
+        if (!other.hasValue)
+            return 1;
+        
+        static foreach (T; AllowedTypes)
+        {
+            if (curType == TagTypeForType!T)
+            {
+                auto thisVal = getValueForType!T();
+                auto thatVal = other.getValueForType!T();
+                static if (hasMember!(T, "opCmp") || is (typeof(thisVal < thatVal)))
+                {
+                    if (thisVal == thatVal)
+                        return 0;
+                    else if (thisVal < thatVal)
+                        return -1;
+                    else
+                        return 1;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+        }
+        return -1;
+    }
+
+    Tag opIndex(size_t index) pure inout
+    {
+        if (curType == Type.List)
+            return getValueForType!List()[index];
+        if (curType == Type.Grid)
+            return Tag(cast(Tag[string]) getValueForType!Grid()[index]);
+        throw new RangeError();
+    }
+
+    Tag opIndex(string index) pure inout
+    {
+        if (curType == Type.Dict)
+            return getValueForType!Dict()[index];
+        throw new RangeError();
+    }
+
+    auto opDispatch(string name, V...)(V vals) if (TypeHasMemeber!name)
+    {
+        enum hasFunc(T) = hasMember!(T, name) || (is(T == List) && name == "length");
+        alias SupportingTypes = Filter!(ApplyRight!(hasFunc), AllowedTypes);
+
+        alias Type = SupportingTypes[0];
+        Type t;
+        mixin(`alias ReturnType = typeof(t.`~name~`);`);
+        
+        static foreach (T; SupportingTypes)
+        {
+            if (curType == TagTypeForType!T)
+            {
+                auto m = getValueForType!T();
+                return mixin("m." ~ name);
+            }
+        }
+        return ReturnType.init;
+    }
+}
+
+// Aliases for complex `Tag` types
+alias List = Tag[];
 alias Dict = Tag[string];
 alias Grid = GridImpl!(Dict);
 
-string toStr()(auto ref const(Tag) tag)
+/// Implements a simple pattern matching logic
+template visit(Funcs...) if (Funcs.length > 0)
+{
+    auto visit(Self)(auto ref Self tag)
+    {
+        import std.traits : ReturnType, Parameters;
+        
+        static foreach (func; Funcs) // iterate all function handlers
+        {
+            static if (Parameters!func.length) // check if function has paramas
+            {{
+                alias Return    = Parameters!func; // function return type
+                alias Param     = Parameters!(func)[0]; // fist function param type
+                
+                static foreach (T; Self.AllowedTypes) // iterate all Tag alllowed types
+                {
+                    static if (is(Param:T)) // check if fist function param is convertible to tag type `T`
+                    {
+                        if (tag.curType == Self.TagTypeForType!T) // if the tag has a value of the type `T`
+                        {
+                            auto val = tag.getValueForType!T(); // det the `Tag` value for `T`
+                            // call the handler with the current `Tag` value
+                            static if (is(Return == void))
+                                func(val);
+                            else
+                                return func(val);
+                        }
+                    }
+                }
+            }}
+        }
+        static if (is(typeof(return) == void))
+            return;
+        else
+            return typeof(return).init;
+    }
+}
+unittest
+{
+    Tag t;
+    t = "a string";
+    assert(t.hasValue!Str());
+
+    string str = t.visit!((Str s) => s.val);
+    assert(str == "a string");
+}
+
+Str toStr()(auto ref const(Tag) tag)
 {
     import std.format : format;
     import std.string : lastIndexOf;
-    import std.variant : tryVisit;
     import std.conv : to;
-    Tag value = cast(Tag) tag;
-    string tagVal = !value.hasValue ? "null" :
-                                value.tryVisit!(
-                                    (ref Marker v) => v.toString(),
-                                    (ref Na v) => v.toString(),
-                                    (ref Bool v) => v.toString(),
-                                    (ref Num v) => v.toString(),
-                                    (ref Str v) => v.toString(),
-                                    (ref Coord v) => v.toString(),
-                                    (ref XStr v) => v.toString(),
-                                    (ref Uri v) => v.toString(),
-                                    (ref Ref v) => v.toString(),
-                                    (ref Date v) => v.toString(),
-                                    (ref Time v) => v.toString(),
-                                    (ref SysTime v) => v.toString(),
-                                    (ref TagList v) => v.toString(),
-                                    (ref Dict v) => v.toString(),
-                                    (ref Grid v) => v.toString(),
-                                    )();
-    string tagType = to!string(value.type);
-    return format("%s(%s)", tagType[tagType.lastIndexOf('.') + 1..$], tagVal);
+    string tagVal = !tag.hasValue ? "null" : tag.toString();
+    string tagType = to!string(tag.type);
+    return Str(format("%s(%s)", tagType[tagType.lastIndexOf('.') + 1..$], tagVal));
 }
 
 unittest
@@ -197,7 +482,7 @@ Tag tag(Num n)
     return Tag(n);
 }
 /// ditto
-Tag tag(TagList t) pure
+Tag tag(List t) pure
 { 
     return Tag(t); 
 }
@@ -232,24 +517,6 @@ Returns: a Na Tag
 unittest
 {
     assert(na == Tag(Na()));
-}
-
-/*
-Retries the current $(D Tag) value.
-If $(D Tag) has no value than then T.init is returned
-*/
-T val(T)(auto ref const(Tag) tag) if (Tag.allowed!T)
-{
-    if (!tag.hasValue || !tag.peek!T)
-        return T.init;
-    return cast(T) tag.get!T;
-}
-
-unittest
-{
-    auto x = 12.tag;
-    assert(x.val!Num == 12);
-    assert(Tag().val!Str == Str.init);
 }
 
 /************************************************************
@@ -329,7 +596,7 @@ struct Num
         this.unit   = unit;
     }
 
-    bool opEquals()(auto ref const Num num) const
+    bool opEquals()(auto ref const(Num) num) const
     {
         return num.val == this.val && num.unit == this.unit;
     }
@@ -511,7 +778,7 @@ struct Ref
         return val;
     }
 
-    size_t toHash() pure const nothrow
+    size_t toHash() pure const @safe nothrow
     {
         return val.hashOf();
     }
@@ -594,17 +861,28 @@ unittest
 Check if Dict is empty.
 Returns: true if dict is empty.
 */
-@property bool empty()(auto ref const(Dict) dict) pure nothrow { return dict.length == 0; }
+@property bool empty(const(Dict) dict) pure nothrow
+{ 
+    return dict.length == 0;
+}
+
 /**
 Check if Dict contains column.
 Returns: true if dict contains that column.
 */
-bool has()(auto ref const(Dict) dict, string col) pure nothrow { return (col in dict) != null; }
+bool has(const(Dict) dict, string col) pure nothrow 
+{ 
+    return (col in dict) != null;
+}
+
 /**
 Check if Dict misses the column.
 Returns: true if dict doe not contain the column.
 */
-bool missing()(auto ref const(Dict) dict, string col) pure nothrow { return !dict.has(col); }
+bool missing(const(Dict) dict, string col) pure nothrow
+{ 
+    return !dict.has(col);
+}
 unittest
 {
     Dict d;
@@ -646,7 +924,7 @@ Gets the 'dis' property for the $(D Dict).
 If the $(D Dict) has no 'id' or no 'dis' then an empty string is returned,
 if there is an 'id' property but without a 'dis' the 'id' value is returned.
 */
-@property string dis()(auto ref const(Dict) rec)
+@property string dis(const(Dict) rec)
 {
     auto id = rec.get!Ref("id");
     return id.dis != "" ? id.dis : id.val;
@@ -661,11 +939,11 @@ unittest
 /**
 Get $(D Dict) property of type $(D T), or if property is missing $(D T.init)
 */
-T get(T)(auto ref const(Dict) dict, string key)  if (Tag.allowed!T)
+T get(T)(const(Dict) dict, string key) if (Tag.allowed!T)
 {
     if (dict.missing(key))
         return T.init;
-    return dict[key].val!T;
+    return dict[key].get!T;
 }
 unittest
 {
@@ -675,11 +953,11 @@ unittest
 /**
 Test if $(D Dict) has property of type $(D T)
 */
-bool has(T)(auto ref const(Dict) dict, string key)  if (Tag.allowed!T)
+bool has(T)(const(Dict) dict, string key) if (Tag.allowed!T)
 {
     if (dict.missing(key))
         return false;
-    return dict[key].peek!T !is null;
+    return dict[key].hasValue!T;
 }
 unittest
 {
@@ -699,7 +977,7 @@ key     = the key to look up
 Returns: true if dict has a null value key.
 
 */
-@property bool isNull()(auto ref const(Dict) dict, string key)
+@property bool isNull(const(Dict) dict, string key)
 {
     return dict.has(key) && dict[key] == Tag.init;
 }
@@ -713,7 +991,7 @@ unittest
 /**
 Test if $(D Dict) misses property of type $(D T)
 */
-bool missing(T)(auto ref const(Dict) dict, string key)  if (Tag.allowed!T)
+bool missing(T)(const(Dict) dict, string key) if (Tag.allowed!T)
 {
     return !dict.has!T(key);
 }
@@ -725,7 +1003,7 @@ unittest
     assert(d.missing!Bool("foo"));
 }
 
-string toString()(auto ref const(Dict) dict)
+string toString(const(Dict) dict)
 {
     import std.array : appender;
 
@@ -744,7 +1022,7 @@ string toString()(auto ref const(Dict) dict)
     return buf.data;
 }
 
-string toString()(auto ref const(TagList) list)
+string toString(const(List) list)
 {
     import std.array : appender;
 
