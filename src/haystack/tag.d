@@ -44,6 +44,10 @@ struct Tag
         Grid
     }
 
+    // Re-map some types to the their implementation
+    alias Number        = Num;
+    alias DateTime      = SysTime;
+
     // Adds the `SumType` traits
     mixin SumType!Type;
 
@@ -190,8 +194,16 @@ struct Tag
     {
         static foreach (T; AllowedTypes)
         {
-            if (curType == TagTypeForType!T)
-                return getValueForType!T().toString();
+            static if (!is(T == Str))
+            {
+                if (curType == TagTypeForType!T)
+                    return getValueForType!T().toString();
+            }
+            else
+            {
+                if (curType == Type.Str)
+                    return getValueForType!Str().val;
+            }
        }
         return "";
     }
@@ -438,6 +450,7 @@ unittest
     assert(v.get!Str != "");
     assert(v.get!Str == "foo bar");
     assert(tag("abc").get!Str == "abc");
+    assert(v.toString() == "foo bar");
     // ref type
     v = Ref("@baz");
     assert(v.get!Ref != Ref());

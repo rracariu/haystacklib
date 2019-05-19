@@ -438,8 +438,6 @@ mixin template SumType(alias Type)
     alias AllowedTypeNames = staticMap!(aliasToStr, EnumMembers!Type);
 
     /// All allowed `Tag` types
-    alias Number        = Num;
-    alias DateTime      = SysTime;
     alias AllowedTypes  = staticMap!(StrToSymbol, AllowedTypeNames);
 
     // Sanity check
