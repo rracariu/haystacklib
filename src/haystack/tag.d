@@ -44,7 +44,7 @@ struct Tag
         Grid
     }
 
-    // Re-map some types to the their implementation
+    // Re-map some declared types to their implementation
     alias Number        = Num;
     alias DateTime      = SysTime;
 
@@ -227,7 +227,7 @@ struct Tag
     // Generate equality operator allowed types, except List and Dict
     static foreach (T; AllowedTypes)
     {
-        static if (!is(T : Dict) && !is(T : List))
+        static if (!is(T == Dict) && !is(T == List))
         {
             bool opEquals()(auto ref const(T) value) const
             {
