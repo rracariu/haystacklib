@@ -424,6 +424,8 @@ unittest
 
 /**
 Implements a safe discriminating union, aka sum type.
+Accepts the type `Type` as an enum listing the supporting types.
+Each enum filed name is considered as an alias for an actual type.
 */
 mixin template SumType(alias Type)
 {
@@ -442,7 +444,7 @@ mixin template SumType(alias Type)
 
     // Sanity check
     static assert(AllowedTypes.length == EnumMembers!Type.length,
-                  "Missmatch sizes of `AllowedTypes` and `TagType`");
+                  "Missmatch sizes of `AllowedTypes` and specified `Type` enum " ~ to!string(Type));
 
     /// Check if type `T` is a supported type
     enum allowed(T) = staticIndexOf!(T, AllowedTypes) != -1;
@@ -458,9 +460,9 @@ private:
         mixin(`alias StrToSymbol = `~to!string(S)~`;`);
     }
 
-    // Get the `Value` field name for a `Type`
+    // Get the `Value` field name for an allowed type `T`
     enum valNameForType(T) = `val` ~ AllowedTypeNames[staticIndexOf!(T, AllowedTypes)];
-    // Get the `TagType` enum for a `Type`
+    // Get the `Type` enum value for an allowed type `T`
     alias TagTypeForType(T) = EnumMembers!Type[staticIndexOf!(T, AllowedTypes)];
 
     // Check if one of the `AllowedType`s has a given member

@@ -16,6 +16,9 @@ public import std.datetime  : SysTime;
 
 import std.traits   : Unqual;
 
+/// Alternative name for a `Num`
+public alias Number    = Num;
+
 /************************************************************
 Any haystack value type.
 ************************************************************/
@@ -45,8 +48,7 @@ struct Tag
     }
 
     // Re-map some declared types to their implementation
-    alias Number        = Num;
-    alias DateTime      = SysTime;
+    alias DateTime  = SysTime;
 
     // Adds the `SumType` traits
     mixin SumType!Type;
@@ -442,6 +444,8 @@ unittest
     v = Num(1);
     assert(v.get!Num == Num(1));
     assert(v.get!Num == 1);
+    assert(v.get!Number == 1);
+
     v = Num(100.23);
     assert(v.get!Num == 100.23);
     assert(tag(42) == tag(42));
