@@ -449,6 +449,14 @@ mixin template SumType(alias Type)
     /// Check if type `T` is a supported type
     enum allowed(T) = staticIndexOf!(T, AllowedTypes) != -1;
 
+    /**
+    Returns the current `Type`
+    */
+    Type type() pure inout @safe nothrow
+    {
+        return curType;
+    }
+
 private:
 
     // Converts symbol to string

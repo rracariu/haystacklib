@@ -166,7 +166,7 @@ struct Tag
     }
 
     /**
-    Returns true if there is a value type `T` 
+    Returns true if there is a value of type `T` 
     */
     bool hasValue(T)() inout @safe nothrow
     {
@@ -179,14 +179,6 @@ struct Tag
     bool hasValue() pure inout @safe nothrow
     {
         return curType != emptyType;
-    }
-
-    /**
-    Returns the current `Type`
-    */
-    Type type() pure inout @safe nothrow
-    {
-        return curType;
     }
 
     /**
