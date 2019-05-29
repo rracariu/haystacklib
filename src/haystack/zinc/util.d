@@ -457,6 +457,19 @@ mixin template SumType(alias Type)
         return curType;
     }
 
+    /**
+    Returns true if no value is stored
+    */
+    bool empty() pure inout @safe nothrow
+    {
+        return curType == emptyType;
+    }
+
+    ~this() pure nothrow
+    {
+        clearCurValue();
+    }
+
 private:
 
     // Converts symbol to string
@@ -493,15 +506,15 @@ private:
     }
 
     /// Clears the current value
-    void clearCurValue()
+    void clearCurValue() pure nothrow
     {
-        if (!hasValue)
+        if (empty)
             return;
 
         static foreach (T; AllowedTypes)
         {
             if (curType == TagTypeForType!T)
-                mixin(`value.`~valNameForType!T~`.destroy();`);
+                mixin(`return value.`~valNameForType!T~`.destroy();`);
         }
     }
 

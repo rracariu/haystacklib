@@ -69,6 +69,7 @@ struct Tag
             {
                 T t = val.getValueForType!T();
                 setValueForType!T(t);
+                return this;
             }
         }
         return this;
@@ -178,7 +179,7 @@ struct Tag
     */
     bool hasValue() pure inout @safe nothrow
     {
-        return curType != emptyType;
+        return !empty;
     }
 
     /**
@@ -258,7 +259,7 @@ struct Tag
                 static if (hasMember!(T, "toHash"))
                     return getValueForType!T().toHash();
                 else
-                    return ()@trusted { return getValueForType!T().hashOf();}();
+                    return () @trusted { return getValueForType!T().hashOf();}();
             }
         }
         return 0;
@@ -437,10 +438,14 @@ unittest
     assert(v.get!Num == Num(1));
     assert(v.get!Num == 1);
     assert(v.get!Number == 1);
+    const Tag v2 = Num(2);
+    assert(v < v2);
 
-    v = Num(100.23);
-    assert(v.get!Num == 100.23);
+    v = Num(100.23, "%");
+    assert(v.get!(Num).val == 100.23);
+    assert(v.get!(Num) == Num(100.23, "%"));
     assert(tag(42) == tag(42));
+
     // str type
     v = Str("foo bar");
     assert(v.get!Str != "");
