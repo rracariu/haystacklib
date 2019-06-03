@@ -3,7 +3,7 @@ os:
  - linux
 language: d
 d:
- - ldc-1.9.0
+ - ldc-1.12.0
  - ldc
  - dmd
 env:
