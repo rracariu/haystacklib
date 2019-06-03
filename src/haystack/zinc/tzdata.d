@@ -8,13 +8,13 @@ Authors:   Radu Racariu
 **/
 module haystack.zinc.tzdata;
 
-import std.string : toUpper;
+import std.uni      : sicmp;
 import std.datetime : TimeZone, UTC;
 
 private string cityName(string fullName) pure
 {
     import std.string : lastIndexOf;
-    if (fullName.toUpper == "STD")
+    if (fullName.sicmp("STD") == 0)
         return "UTC";
     return fullName[fullName.lastIndexOf('/') + 1 .. $];
 }
@@ -603,7 +603,7 @@ version(Posix)
 
     static immutable(TimeZone) timeZone(string name)
     {
-        if (!hasTzData || name.toUpper == "UTC" || name.toUpper == "STD")
+        if (!hasTzData || name.sicmp("UTC") == 0 || name.sicmp("STD") == 0)
             return UTC();
         try
         {
@@ -630,7 +630,7 @@ version (Windows)
 
     static immutable(TimeZone) timeZone(string name)
     {
-        if (name.toUpper == "UTC")
+        if (name.sicmp("UTC") == 0)
             return UTC();
         if (name in conv.toWindows)
         {
