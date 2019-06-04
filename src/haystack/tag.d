@@ -489,7 +489,7 @@ struct Ref
     /// display
     string dis;
 
-    this(string id, string dis = "")
+    this(string id, string dis = "") pure inout
     {
         this.val = id;
         this.dis = dis;
