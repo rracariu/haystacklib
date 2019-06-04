@@ -392,7 +392,7 @@ if (isOutputRange!(R, char))
                     )();
 
     if (isGrid)
-        writer.put("\n>>");
+        writer.put(">>");
 
 }
 unittest
@@ -528,7 +528,7 @@ if (isOutputRange!(R, char))
             writer.put(',');
     }
     writer.put('\n');
-    foreach (size_t rowCnt, ref immutable row; grid)
+    foreach (immutable row; grid)
     {
         foreach (size_t colCnt, col; cols)
         {
@@ -537,8 +537,7 @@ if (isOutputRange!(R, char))
             if (colCnt < cols.length - 1)
                 writer.put(',');
         }
-        if (rowCnt < grid.length - 1)
-            writer.put('\n');
+        writer.put('\n');
     }
 }
 unittest
@@ -555,7 +554,7 @@ unittest
     expect = "ver:\"3.0\"\n"
         ~"marker,num,str\n"
         ~`M,42,"a string"` ~ "\n"
-        ~`M,100,"a string"`;
+        ~`M,100,"a string"` ~ "\n";
     string encoded = Grid(grid).zinc(SortedKeys.yes);
     assert(encoded == expect);
     // list and dict
@@ -566,7 +565,7 @@ unittest
     expect = "ver:\"3.0\"\n"
         ~ "dict,list\n"
         ~ ",[1,T]\n"
-        ~ "{a:1 b},";
+        ~ "{a:1 b}," ~ "\n";
     encoded = Grid(grid).zinc(SortedKeys.yes);
     assert(encoded == expect);
     // grid of compound and scalar
@@ -586,14 +585,14 @@ unittest
         ~"1,2\n"
         ~"3,4\n"
         ~`>>` ~ "\n"
-        ~`"scalar","a scalar"`;
+        ~`"scalar","a scalar"` ~ "\n";
     encoded = Grid(grid).zinc(SortedKeys.yes);
     assert(encoded == expect);
     // meta
     scope metagrid = Grid([["a":1.tag]], ["foo": marker()]);
     expect = `ver:"3.0" foo` ~"\n"
         ~"a\n"
-        ~"1";
+        ~"1\n";
     encoded = zinc(metagrid, SortedKeys.yes);
     assert(encoded == expect);
 }
