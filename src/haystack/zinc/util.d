@@ -465,11 +465,6 @@ mixin template SumType(alias Type)
         return curType == emptyType;
     }
 
-    ~this() pure nothrow
-    {
-        clearCurValue();
-    }
-
 private:
 
     // Converts symbol to string
@@ -525,7 +520,7 @@ private:
     }
 
     /// Gets the value for the type
-    T getValueForType(T)() pure inout
+    T getValueForType(T)() pure inout nothrow
     {
         mixin(`return cast(T) value.`~valNameForType!T~`;`);
     }
@@ -534,7 +529,7 @@ private:
     union Value
     {
         // generate members for all allowed types
-        static foreach (i, T; AllowedTypes)
+        static foreach (T; AllowedTypes)
             mixin(T.stringof ~ ` ` ~ valNameForType!T ~ `;`);
     }
 

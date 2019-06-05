@@ -53,7 +53,7 @@ struct Tag
     // Adds the `SumType` traits
     mixin SumType!Type;
 
-    this(Tag tag)
+    this(inout Tag tag) inout pure nothrow
     {
         this.value = tag.value;
         this.curType = tag.curType;
@@ -79,9 +79,9 @@ struct Tag
     // for all supported types
     static foreach (T; AllowedTypes)
     {
-        this(T t) pure
+        this(inout T t) inout pure nothrow
         {
-            setValueForType!T(t);
+            mixin(`value.`~valNameForType!T~` = t;`);
             this.curType = TagTypeForType!T;
         }
 
@@ -97,12 +97,12 @@ struct Tag
     /**
     Construct a `Tag` from  a string
     */
-    this(string val)
+    this(inout string val) inout pure nothrow
     {
-        setValueForType(cast(Str) val);
+        mixin(`value.`~valNameForType!Str~` = Str(val);`);
         this.curType = Type.Str;
     }
-    
+
     /**
     Asigns a string to a `Tag`
     */
@@ -117,9 +117,9 @@ struct Tag
     /**
     Construct a `Tag` from a double
     */
-    this(double val)
+    this(double val) inout pure nothrow
     {
-        setValueForType(cast(Num) val);
+        mixin(`value.`~valNameForType!Number~` = val;`);
         this.curType = Type.Number;
     }
 
@@ -137,9 +137,9 @@ struct Tag
     /**
     Construct a `Tag` from a bool
     */
-    this(bool val)
+    this(bool val) inout pure nothrow
     {
-        setValueForType(cast(Bool) val);
+        mixin(`value.`~valNameForType!Bool~` = Bool(val);`);
         this.curType = Type.Bool;
     }
 
@@ -435,7 +435,7 @@ unittest
     t.visit!((Num s) => s.val, () => str = "");
     assert(str == "");
 
-    immutable Tag tag = Tag([1.tag, "foo".tag, true.tag, (42.42).tag]);
+    immutable Tag tag = immutable Tag([1.tag, "foo".tag, true.tag, (42.42).tag]);
 
     assert(tag[0] == 1);
     assert(tag[1] == "foo");
@@ -672,40 +672,40 @@ struct Num
     /// the unit defined for this number
     string unit;
 
-    this(Num n)
+    this(Num n) inout pure nothrow
     {
         this.val    = n.val;
         this.unit   = n.unit;
     }
 
-    this(double val, string unit = null)
+    this(double val, string unit = null) inout pure nothrow
     {
         this.val    = val;
         this.unit   = unit;
     }
 
-    bool opEquals()(auto ref const(Num) num) const
+    bool opEquals()(auto ref const(Num) num) const nothrow
     {
         return num.val == this.val && num.unit == this.unit;
     }
 
-    bool opEquals(double d) const
+    bool opEquals(double d) const nothrow
     {
         return d == this.val && this.unit == string.init;
     }
 
-    void opAssign(double val)
+    void opAssign(double val) nothrow
     {
         this.val = val;
     }
 
-    @property bool isNaN() const
+    @property bool isNaN() const pure nothrow
     {
         import std.math : isNaN;
         return val.isNaN;
     }
 
-    @property bool isINF() const
+    @property bool isINF() const pure nothrow
     {
         return val == val.infinity || val == (-1) * val.infinity;
     }
@@ -716,7 +716,7 @@ struct Num
         return to!T(val);
     }
 
-    string toString() const
+    string toString() inout
     {
         import std.conv : to;
         return to!string(val) ~ (unit.length ? " " ~ unit : "");
@@ -844,7 +844,7 @@ struct Ref
     /// display
     string dis;
 
-    this(string id, string dis = "") pure inout
+    this(string id, string dis = "") inout pure
     {
         this.val = id;
         this.dis = dis;
