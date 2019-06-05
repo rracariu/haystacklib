@@ -206,10 +206,10 @@ struct Tag
     // Check eqaulity between 2 `Tag`s
     bool opEquals()(auto ref const(Tag) other) const
     {
-        if (!this.hasValue && !other.hasValue)
-            return true;
         if (this.curType != other.curType)
             return false;
+        if (!this.hasValue && !other.hasValue)
+            return true;
 
         static foreach (T; AllowedTypes)
         {
@@ -231,6 +231,34 @@ struct Tag
                 return getValueForType!T() == (cast() value);
             }
         }
+    }
+
+    bool opEquals(T:int)(T value) const
+    {
+        if (this.curType != Type.Number)
+            return false;
+        return getValueForType!Number() == value;
+    }
+    
+    bool opEquals(double value) const
+    {
+        if (this.curType != Type.Number)
+            return false;
+        return getValueForType!Number() == value;
+    }
+
+    bool opEquals(bool value) const
+    {
+        if (this.curType != Type.Bool)
+            return false;
+        return getValueForType!Bool() == value;
+    }
+
+    bool opEquals(string value) const
+    {
+        if (this.curType != Type.Str)
+            return false;
+        return getValueForType!Str() == value;
     }
 
     bool opEquals(const(List) value) const
@@ -406,6 +434,13 @@ unittest
 
     t.visit!((Num s) => s.val, () => str = "");
     assert(str == "");
+
+    immutable Tag tag = Tag([1.tag, "foo".tag, true.tag, (42.42).tag]);
+
+    assert(tag[0] == 1);
+    assert(tag[1] == "foo");
+    assert(tag[2] == true);
+    assert(tag[3] == 42.42);
 }
 
 Str toStr()(auto ref const(Tag) tag)
