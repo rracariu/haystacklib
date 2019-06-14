@@ -157,7 +157,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                     else // scalar, list, dict 
                     {
                         auto el     = Parser.AnyTag(parser);
-                        dict[key] = cast() el.asTag;
+                        dict[key]   = cast() el.asTag;
                     }
 
                     state = State.nextLine;
@@ -390,7 +390,7 @@ n:3}";
 unittest
 {
     auto complex = q"{list:[1,"str",T]
-dict: {ana:"are", mere}
+dict: {ana:"are" mere}
 // some comment
 grid:Zinc:
     ver:"3.0"

@@ -722,6 +722,8 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
     /// Decode a list of pair of tags
     struct NameValueList
     {
+        import std.algorithm : canFind;
+
         NameValue value = void;
 
         @property bool empty()
@@ -752,7 +754,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                             state = TagPairListState.fault;
                             return;
                         }
-                        if (parser.hasChr(sep))
+                        if (sep.canFind!(s=>parser.hasChr(s)))
                         {
                             state = TagPairListState.tag;
                             parser.lexer.popFront();
@@ -796,7 +798,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
             return Tag(asDict());
         }
 
-        this(ref Parser parser, char sep = ' ')
+        this(ref Parser parser, char[] sep = [' '])
         {
             this.parser = &parser;
             this.sep = sep;
@@ -812,7 +814,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         @disable this();
         @disable this(this);
-        char sep = void;
+        char[] sep;
         Parser* parser = void;
     }
     unittest
@@ -1336,7 +1338,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         }
                         else
                         {
-                            val = Own!NameValueList(*parser, ',');
+                            val = Own!NameValueList(*parser, [',', ' ']);
                         }
                         return;
 
