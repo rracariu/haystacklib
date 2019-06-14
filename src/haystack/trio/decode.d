@@ -404,7 +404,7 @@ grid:Zinc:
 
     auto decoder = TrioStringDecoder(complex);
     auto dict    = decoder.front();
-    assert(dict.has!TagList("list"));
+    assert(dict.has!List("list"));
     assert(dict.has!Dict("dict"));
     assert(dict.has!XStr("grid"));
 }

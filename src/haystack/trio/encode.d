@@ -26,7 +26,7 @@ if (isOutputRange!(R, char))
     void encodeKeyValue(string key)
     {
         writer.put(key);
-        if (dict[key].peek!Marker)
+        if (dict[key].hasValue!Marker)
         {
             writer.put("\n");
             return;
@@ -34,7 +34,7 @@ if (isOutputRange!(R, char))
 
         writer.put(':');
 
-        if (dict[key].peek!XStr)
+        if (dict[key].hasValue!XStr)
         {
             const xstr = dict.get!XStr(key);
             writer.put(xstr.type);
@@ -44,7 +44,7 @@ if (isOutputRange!(R, char))
             if (padder.lastChar == '\n')
                 return;
         }
-        else if (dict[key].peek!Grid)
+        else if (dict[key].hasValue!Grid)
         {
             writer.put("Zinc");
             writer.put(":\n  ");
@@ -52,7 +52,7 @@ if (isOutputRange!(R, char))
             const grid = dict.get!Grid(key); 
             toZinc(grid, padder, sorted);
         }
-        else if (dict[key].peek!Dict)
+        else if (dict[key].hasValue!Dict)
         {
             toZinc(dict[key], writer, sorted);
         }
@@ -110,8 +110,8 @@ xstr:XStr:
         "coord":    Coord(37.545826,-77.449188).tag,
         "date":     Date(2019, 6, 14).tag,
         "dateTime": SysTime(DateTime(Date(2019, 6, 14), TimeOfDay(15, 24, 0)), timeZone("Nicosia")).tag,
-        "marker":   marker.tag,
-        "na":       na.tag,
+        "marker":   marker,
+        "na":       na,
         "number":   Num(42, "$").tag,
         "ref":      Ref("someId").tag,
         "str":      "a string".tag,
