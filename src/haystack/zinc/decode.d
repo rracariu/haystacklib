@@ -61,7 +61,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         assert(!empty, "Attempting to pop from an empty Grid.");
         // grid parsing state machine
     loop:
-        for(; !empty; lexer.popFront())
+        for (; !empty; lexer.popFront())
         {
             final switch (state)
             {
@@ -215,7 +215,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         import std.array : appender;
         auto colList    = appender!(Grid.Col[])();
         auto rowsList   = appender!(Dict[])();
-        for(; !empty; popFront)
+        for (; !empty; popFront)
         {
             auto el = &front();
             if (el.type == Parser.Element.Type.header)
@@ -321,7 +321,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         void popFront()
         {
-            for(; !empty; parser.lexer.popFront())
+            for (; !empty; parser.lexer.popFront())
             {
                 switch (state)
                 {
@@ -476,7 +476,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         void popFront()
         {
-            for(; !empty; parser.lexer.popFront())
+            for (; !empty; parser.lexer.popFront())
             {
             eval:
                 switch (state)
@@ -607,7 +607,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         void popFront()
         {
-            for(; !empty; parser.lexer.popFront())
+            for (; !empty; parser.lexer.popFront())
             {
                 if (parser.isSpace)
                 {
@@ -737,7 +737,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         void popFront()
         {
-            for(; !empty;)
+            for (; !empty;)
             {
                 final switch (state)
                 {
@@ -771,13 +771,13 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         bool consume()
         {
-            for(; !empty; popFront()) {}
+            for (; !empty; popFront()) {}
             return state == TagPairListState.ok;
         }
 
         void asDict(ref Dict dict)
         {
-            for(; !empty; popFront())
+            for (; !empty; popFront())
             {
                 foreach (ref kv; front.asDict.byKeyValue)
                     dict[kv.key] = kv.value;
@@ -877,7 +877,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         void popFront()
         {
-            for(; !empty; parser.lexer.popFront())
+            for (; !empty; parser.lexer.popFront())
             {
                 final switch (state)
                 {
@@ -934,7 +934,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         bool consume()
         {
-            for(; !empty; popFront()) {}
+            for (; !empty; popFront()) {}
             return state == NameValueState.ok;
         }
 
@@ -1012,9 +1012,9 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         union Val
         {
             Tag scalar      = void;
-            TagList list    = void;
-            TagDict dict    = void;
-            TagGrid grid    = void;
+            TagList list;
+            TagDict dict;
+            TagGrid grid;
         }
 
         @property ref Val front()
@@ -1090,7 +1090,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         bool consume()
         {
-            for(; !empty; popFront()) {}
+            for (; !empty; popFront()) {}
             return state == AnyTagState.ok;
         }
 
@@ -1139,12 +1139,11 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
             else
                 state = AnyTagState.fault;
         }
-
-    private:
         @disable this(this);
 
-        Parser* parser = void;
-        Val val;
+    private:
+        Parser* parser;
+        Val val = void;
         enum AnyTagState { scalar, list, dict, grid, ok, fault }
         AnyTagState state;
     }
@@ -1179,7 +1178,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         void popFront()
         {
-            for(; !empty; parser.lexer.popFront())
+            for (; !empty; parser.lexer.popFront())
             {
                 if (parser.isSpace)
                     continue;
@@ -1229,7 +1228,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         bool consume()
         {
-            for(; !empty; popFront()) {}
+            for (; !empty; popFront()) {}
             return state == TagListState.ok;
         }
 
@@ -1237,7 +1236,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         {
             import std.array : appender;
             auto tagList = appender!(Tag[])();
-            for(; !empty; popFront())
+            for (; !empty; popFront())
             {
                 tagList.put(front.asTag);
             }
@@ -1302,7 +1301,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         void popFront()
         {
-            for(; !empty; parser.lexer.popFront())
+            for (; !empty; parser.lexer.popFront())
             {
                 if (parser.isSpace)
                     continue;
@@ -1326,10 +1325,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         }
                         if (parser.hasChr('}'))
                         {
-                            if (val.isNull)
-                                state = TagDictState.fault;
-                            else
-                                state = TagDictState.ok;
+                            state = TagDictState.ok;
                             parser.lexer.popFront();
                             return;
                         }
@@ -1352,17 +1348,15 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         bool consume()
         {
-            for(; !empty; popFront()) {}
+            for (; !empty; popFront()) {}
             return state == TagDictState.ok;
         }
 
         Tag asTag()
         {
-            auto t = val.asTag;
-            if (consume())
-                return t;
-            else
-                return Tag.init;
+            auto t = val.isNull ? Dict.init.tag : val.asTag;
+            consume();
+            return t;
         }
 
     private:
@@ -1385,6 +1379,11 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
     unittest
     {
         alias Parser = ZincParser!string;
+        {
+            auto parser = Parser("{}");
+            auto el = Parser.TagDict(parser);
+            assert(el.asTag == Dict.init.tag);
+        }
         {
             auto parser = Parser("{age:6");
             auto el = Parser.TagDict(parser);
@@ -1435,7 +1434,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         void popFront()
         {
             int markCnt = 0;
-            for(; !empty; parser.lexer.popFront())
+            for (; !empty; parser.lexer.popFront())
             {
                 if (parser.isSpace)
                     continue;
@@ -1510,7 +1509,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         bool consume()
         {
-            for(; !empty; popFront()) {}
+            for (; !empty; popFront()) {}
             return state == TagGridState.ok;
         }
 
@@ -1569,7 +1568,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
     // Parser internals
     //////////////////////////////////////////////////
 
-private:
+package(haystack):
     Lexer lexer = void;
     Element element;
 
@@ -1751,7 +1750,7 @@ void dumpParser(string zinc)
     import std.stdio : writeln;
     alias Parser = ZincStringParser;
     auto parser = Parser(zinc);
-    for(; !parser.empty; parser.popFront)
+    for (; !parser.empty; parser.popFront)
     {
         auto el = &parser.front();
         if (el.type == Parser.Element.Type.header)

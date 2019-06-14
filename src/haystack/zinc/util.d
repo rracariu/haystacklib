@@ -95,16 +95,10 @@ if (isCharInputRange!Range)
     {
         char[] buf;
         if (_scratchSlice.length)
-        {
             buf = _scratchBuf[0.. $ - _scratchSlice.length].dup();
-            _scratchBuf.free();
-            _scratchBuf = ScopeBuffer!char();
-        }
         else
-        {
             buf = _scratchBuf[0..$].dup(); 
-            initStash();
-        }
+        clearStash();
         return cast(string) buf;
     }
 

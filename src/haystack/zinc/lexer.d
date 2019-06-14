@@ -142,6 +142,21 @@ struct Token
         return isEmpty && _chr.isWhite && _chr.isControl;
     }
 
+    @property bool isAlpha() pure const
+    {
+        return isEmpty && _chr.isAlpha;
+    }
+
+    @property bool isAlphaNum() pure const
+    {
+        return isEmpty && _chr.isAlphaNum;
+    }
+
+    @property bool isUpper() pure const
+    {
+        return isEmpty && _chr.isUpper;
+    }
+
     bool isScalar() pure const
     {
         return type >= TokenType.null_
@@ -204,6 +219,9 @@ if (isCharInputRange!Range)
 
     void popFront()
     {
+        if (input.hasStash)
+            input.clearStash();
+
         if (input.empty)
         {
             isEmpty = true;
@@ -321,15 +339,16 @@ if (isCharInputRange!Range)
                         continue loop;
                     }
                     crtToken = Token.makeChar(startChr);
+                    if (input.hasStash)
+                        return input.save();
                     if (!input.empty)
                         input.popFront();
                     break loop;
             }
         }
-        input.clearStash();
     }
 
-    @property ref Range range() scope
+    @property ref Range range() scope return
     {
         return input.range;
     }
@@ -344,10 +363,15 @@ if (isCharInputRange!Range)
     int ver = 3;
 
     // internals
-package:
+package(haystack):
     
     @disable this();
     @disable this(this);
+
+    @property ref buffer() scope return
+    {
+        return input;
+    }
 
     bool isEmpty = false;
 
@@ -1425,7 +1449,7 @@ package:
                     if (!input.empty && cur == ')')
                     {
                         crtState    = State.done;
-                        break loop;
+                        continue;
                     }
                     else
                     {
@@ -1433,7 +1457,7 @@ package:
                     }
                     
                 case State.done:
-                    assert(false);
+                    break loop;
             }
         }
         if (crtState != State.done)
