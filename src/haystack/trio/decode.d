@@ -71,6 +71,11 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                     // must start with valid key
                     if (lexer.empty || !lexer.front.isId)
                     {
+                        if (isCommentChar)
+                        {
+                            state = State.comment;
+                            goto start;
+                        }
                         state = State.fault;
                         break loop;
                     }
@@ -402,4 +407,16 @@ grid:Zinc:
     assert(dict.has!TagList("list"));
     assert(dict.has!Dict("dict"));
     assert(dict.has!XStr("grid"));
+}
+unittest
+{
+    import std.algorithm: move;
+    auto comment = 
+        q"{// A comment
+        value:1}";
+
+    auto decoder = TrioStringDecoder(comment);
+
+    assert(decoder.front.length == 1);
+    assert(decoder.front.get!Num("value").to!int == 1);
 }
