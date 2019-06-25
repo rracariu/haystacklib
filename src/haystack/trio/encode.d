@@ -9,15 +9,16 @@ Authors:   Radu Racariu
 module haystack.trio.encode;
 import std.range.primitives : isOutputRange;
 import haystack.tag;
-import haystack.zinc.encode : toZinc = encode, SortedKeys;
+import haystack.zinc.encode : toZinc = encode;
 import haystack.zinc.tzdata : timeZone;
+public import haystack.zinc.encode : SortedKeys;
 
 /**
 Encodes `Dict`as a Trio.
 Expects an OutputRange as writer.
 Returns: the writter OutputRange
 */
-ref R encode(R) (auto ref R writer, Dict dict, SortedKeys sorted = SortedKeys.no)
+ref R encode(R) (auto ref R writer, const(Dict) dict, SortedKeys sorted = SortedKeys.no)
 if (isOutputRange!(R, char))
 {
     import std.algorithm    : each, sort;
@@ -73,7 +74,7 @@ if (isOutputRange!(R, char))
 /**
 Encodes Dict to a Trio string
 */
-string trio(Dict dict, SortedKeys sorted = SortedKeys.no)
+string trio(const(Dict) dict, SortedKeys sorted = SortedKeys.no)
 {
     import std.array : appender;
     auto buf = appender!string();
