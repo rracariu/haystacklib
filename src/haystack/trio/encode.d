@@ -10,7 +10,7 @@ module haystack.trio.encode;
 import std.range.primitives : isOutputRange;
 import haystack.tag;
 import haystack.zinc.encode : toZinc = encode;
-import haystack.zinc.tzdata : timeZone;
+import haystack.util.tzdata : timeZone;
 public import haystack.zinc.encode : SortedKeys;
 
 /**

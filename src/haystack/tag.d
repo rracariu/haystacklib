@@ -25,7 +25,7 @@ Any haystack value type.
 struct Tag
 {
     import core.exception       : RangeError;
-    import haystack.zinc.util   : SumType;
+    import haystack.util.utils  : SumType;
     
     /// This tag allowed types
     enum Type

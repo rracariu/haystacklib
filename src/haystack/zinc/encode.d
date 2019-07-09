@@ -317,7 +317,7 @@ if (isOutputRange!(R, char))
     import core.time;
     import std.datetime : UTC;
     import std.format   : formattedWrite;
-    import haystack.zinc.tzdata;
+    import haystack.util.tzdata;
 
     encode(cast(Date)val, writer);
     writer.put('T');
@@ -342,7 +342,7 @@ if (isOutputRange!(R, char))
 unittest
 {
     import core.time;
-    import haystack.zinc.tzdata;
+    import haystack.util.tzdata;
     assert(zinc(DateTime(Date(2016, 12, 7), Time(8, 56, 00))) == "2016-12-07T08:56:00Z");
     auto e = SysTime(DateTime(Date(2016, 12, 7), Time(8, 56, 00)), 100.msecs, timeZone("GMT+7")).zinc();
     string tzname = getTimeZoneName(timeZone("GMT+7"));

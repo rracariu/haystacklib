@@ -8,7 +8,7 @@ Authors:   Radu Racariu
 **/
 module haystack.zinc.lexer;
 import haystack.tag;
-import haystack.zinc.util;
+import haystack.util.utils;
 import std.ascii            : isLower, 
                               isUpper,
                               isAlpha,
@@ -1149,7 +1149,7 @@ package(haystack):
     {
         import core.time    : msecs;
         import std.datetime : UTC;
-        import haystack.zinc.tzdata : timeZone;
+        import haystack.util.tzdata : timeZone;
 
         if (!lexDate()) // try the date part
             return false;
@@ -1324,7 +1324,7 @@ package(haystack):
         assertTokenValue("1989-12-21T15:39:00Z UTC", Token(TokenType.dateTime, SysTime(DateTime(1989, 12, 21, 15, 39, 0), UTC()).Tag));
         assertTokenValue("2015-03-31T18:06:41.956Z", Token(TokenType.dateTime, SysTime(DateTime(2015, 3, 31, 18, 6, 41), msecs(956), UTC()).Tag));
         
-        import haystack.zinc.tzdata;
+        import haystack.util.tzdata;
         assertTokenValue("2010-08-31T08:45:00+02:00 Europe/Athens", Token(TokenType.dateTime, SysTime(DateTime(2010, 8, 31, 8, 45, 0), timeZone("Europe/Athens")).Tag));
         assertTokenValue("2010-08-31T08:45:00-05:00 New_York", Token(TokenType.dateTime, SysTime(DateTime(2010, 8, 31, 8, 45, 0), timeZone("New_York")).Tag));
         assertTokenValue("2010-08-31T08:45:00+02:00 Nicosia", Token(TokenType.dateTime, SysTime(DateTime(2010, 8, 31, 8, 45, 0), timeZone("Asia/Nicosia")).Tag));

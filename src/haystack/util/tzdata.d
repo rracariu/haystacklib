@@ -6,7 +6,7 @@ Copyright: Copyright (c) 2017, Radu Racariu <radu.racariu@gmail.com>
 License:   $(LINK2 www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 Authors:   Radu Racariu
 **/
-module haystack.zinc.tzdata;
+module haystack.util.tzdata;
 
 import std.uni      : sicmp;
 import std.datetime : TimeZone, UTC;

@@ -6,7 +6,7 @@ Copyright: Copyright (c) 2017, Radu Racariu <radu.racariu@gmail.com>
 License:   $(LINK2 www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 Authors:   Radu Racariu
 **/
-module haystack.zinc.util;
+module haystack.util.utils;
 import std.traits : isSomeChar;
 import std.range.primitives : isInputRange,
                               ElementEncodingType;
