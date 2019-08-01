@@ -8,7 +8,7 @@ Authors:   Radu Racariu
 **/
 module haystack.zinc.lexer;
 import haystack.tag;
-import haystack.util.utils;
+import haystack.util.misc;
 import std.ascii            : isLower, 
                               isUpper,
                               isAlpha,

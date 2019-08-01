@@ -12,7 +12,7 @@ import std.algorithm    : move;
 import std.functional   : equalTo, lessThan, greaterThan;
 
 import haystack.tag;
-import haystack.util.utils : isCharInputRange, Own;
+import haystack.util.misc : isCharInputRange, Own;
 import haystack.zinc.lexer;
 
 /// Filter parsing exception

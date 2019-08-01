@@ -1,12 +1,12 @@
 // Written in the D programming language.
 /**
-Haystack utils.
+Haystack misc utils.
 
 Copyright: Copyright (c) 2017, Radu Racariu <radu.racariu@gmail.com>
 License:   $(LINK2 www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 Authors:   Radu Racariu
 **/
-module haystack.util.utils;
+module haystack.util.misc;
 import std.traits : isSomeChar;
 import std.range.primitives : isInputRange,
                               ElementEncodingType;

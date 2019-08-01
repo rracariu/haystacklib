@@ -15,7 +15,7 @@ import std.range.primitives : empty, isInputRange, ElementEncodingType;
 
 import haystack.tag;
 import haystack.zinc.lexer;
-import haystack.util.utils : Own;
+import haystack.util.misc : Own;
 
 ///////////////////////////////////////////////////////////////////
 //
