@@ -230,10 +230,23 @@ if (isCharInputRange!Range)
         
         TokenType nextToken;
         char startChr = cur;
-    
+
     loop:
         while (!input.empty)
         {
+            // short circuit special chars
+            if (startChr.isWhite || startChr.isControl)
+            {
+                if (startChr == '\r') // normalize CR-LF
+                {
+                    input.popFront();
+                    startChr = cur;
+                    continue loop;
+                }
+                crtToken = Token.makeChar(startChr);
+                return input.popFront();
+            }
+
             switch (nextToken)
             {
                 case TokenType.id:
@@ -332,12 +345,6 @@ if (isCharInputRange!Range)
                      goto default;
 
                 default:
-                    if (!input.empty && cur == '\r') // normalize nl
-                    {
-                        input.popFront();
-                        startChr = cur;
-                        continue loop;
-                    }
                     crtToken = Token.makeChar(startChr);
                     if (input.hasStash)
                         return input.save();
