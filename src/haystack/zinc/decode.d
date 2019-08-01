@@ -8,8 +8,9 @@ Authors:   Radu Racariu
 **/
 module haystack.zinc.decode;
 
-import std.algorithm : move;
-import std.traits : isSomeChar;
+import std.algorithm    : move;
+import std.conv         : to;
+import std.traits       : isSomeChar;
 import std.range.primitives : empty, isInputRange, ElementEncodingType;
 
 import haystack.tag;
@@ -71,10 +72,12 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         if (element.header.consume() && isNewLine)
                         {
                             lexer.popFront();
-                            state++;
+                            state   = ParserState.colums;
                         }
                         else
-                            state = ParserState.fault;
+                        {
+                            state   = ParserState.fault;
+                        }
                     }
                     else
                     {
@@ -88,10 +91,12 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         if (element.columns.consume() && isNewLine)
                         {
                             lexer.popFront();
-                            state++;
+                            state   = ParserState.rows;
                         }
                         else
-                            state = ParserState.fault;
+                        {
+                            state   = ParserState.fault;
+                        }
                     }
                     else
                     {
@@ -122,7 +127,9 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                             }
                         }
                         else
-                            state = ParserState.fault;
+                        {
+                            state   = ParserState.fault;
+                        }
                     }
                     else
                     {
@@ -146,7 +153,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
     The atomic parts of a Grid.
     It holds type and value information about header, columns, rows
     */
-    static struct Element
+    struct Element
     {
         /// Each Element type
         enum Type { header, columns, rows, none = uint.max }
@@ -206,6 +213,78 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
     }
 
     /**
+    Parses the zinc `InputRange` as an `InputRange` of `Dict`s
+    This allows lazy row based parsing.
+    */
+    auto asRows() scope return
+    {
+        import std.array : appender;
+        auto colList    = appender!(Grid.Col[])();
+
+        // Wraps the row parser into a `InputRange`
+        struct Result
+        {
+            this (scope Rows* rows)
+            {
+                this.rows = rows;
+                if (rows !is null && !rows.empty)
+                    popFront();
+            }
+
+            @property bool empty() scope { return _empty; }
+
+            @property Dict front() { return row; }
+
+            void popFront()
+            {
+                row = Dict.init;
+                for (size_t i = 0; !rows.empty; rows.popFront(), i++)
+                {
+                    row[colList.data[i].dis] =  rows.front.asTag;
+                }
+                _empty = rows.parser.empty;
+                if (!_empty)
+                    rows.parser.popFront();
+            }
+
+        private:
+            Dict row;
+            bool _empty = true;
+            Rows* rows;
+        }
+        // addvance the parser till the rows portion
+        for (; !empty; popFront)
+        {
+            auto el = &front();
+            if (el.type == Parser.Element.Type.header)
+            {
+                for (; !el.header.empty; el.header.popFront)
+                {
+                    auto h = &el.header.front();
+                    if (h.type == Parser.Header.Type.tags)
+                        h.tags.consume();
+                }
+            }
+            if (el.type == Parser.Element.Type.columns)
+            {
+                for (; !el.columns.empty; el.columns.popFront)
+                {
+                    scope col = &el.columns.front();
+                    if (col.type == Parser.Columns.Type.name)
+                        colList.put(Grid.Col(col.name));
+                    else if (col.type == Parser.Columns.Type.tags)
+                        col.tags.consume();
+                }
+            }
+            if (el.type == Parser.Element.Type.rows)
+            {
+               return Result(&el.rows());
+            }
+        }
+        return Result(null);
+    }
+
+    /**
     Parses the $(D InputRange) and constructs an in-memory $(D Grid)
     */
     immutable(Grid) asGrid()
@@ -224,7 +303,9 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                 {
                     auto h = &el.header.front();
                     if (h.type == Parser.Header.Type.ver)
+                    {
                         ver = h.ver;
+                    }
                     else if (h.type == Parser.Header.Type.tags)
                     {
                         for (; !h.tags.empty; h.tags.popFront)
@@ -297,13 +378,13 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
     struct Header
     {
         enum Type { ver, tags }
-
+        
         struct Value
         {
             Type type;
             union
             {
-                string ver;
+                string ver = void;
                 NameValueList tags;
             }
         }
@@ -326,17 +407,17 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                 switch (state)
                 {
                     case HeaderState.ver:
-                        if (parser.isSpace() && !parser.lexer.empty)
-                            continue;
                         if (!parseVer())
+                        {
                             state = HeaderState.fault;
+                        }
                         else
                         {
-                            value.type = Type.ver;
                             import std.conv : parse;
+                            value.type = Type.ver;
                             string ver = value.ver;
                             parser.lexer.ver = parse!int(ver);
-                            state++;
+                            state = HeaderState.tags;
                         }
                         return; // stop if ver found
 
@@ -375,6 +456,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         // implementation
     private:
+
         this(ref Parser parser)
         {
             this.parser = &parser;
@@ -383,10 +465,9 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
             else
                 state = HeaderState.fault;
         }
-        @disable this();
-        @disable this(this);
+        @disable { this(); this(this); }
 
-        Parser* parser  = void;
+        Parser* parser;
         Value value     = void;
         enum HeaderState { ver, tags, ok, fault }
         HeaderState state;
@@ -406,22 +487,20 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                     case VerState.ver:
                         if (!parser.expectToken(TokenType.id, "ver".tag))
                             return false;
-                        state++;
+                        state   = VerState.sep;
                         break;
 
                     case VerState.sep:
                         if (!parser.hasChr(':'))
                             return false;
-                        state++;
+                        state   = VerState.str;
                         break;
 
                     case VerState.str:
                         if (!parser.expectToken(TokenType.str))
                             return false;
-                        value.ver = parser.token.value!Str;
-                        if (parser.lexer.empty)
-                            return true;
-                        state++;
+                        value.ver   = parser.token.value!Str;
+                        state       = VerState.done;
                         break;
 
                     case VerState.done:
@@ -448,7 +527,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
     //
     ///////////////////////////////////////////////////////////////////////
 
-    /// Parser the column portion of a $(D Grid)
+    /// Parser the column portion of a `Grid`
     struct Columns
     {
         enum Type { name, tags }
@@ -458,7 +537,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
             Type type;
             union
             {
-                string name;
+                string name = void;
                 NameValueList tags;
             }
         }
@@ -478,31 +557,37 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         {
             for (; !empty; parser.lexer.popFront())
             {
-            eval:
+            start:
                 switch (state)
                 {
                     case ColumnsState.name:
                         if (parser.isSpace() && !parser.lexer.empty)
                             continue;
                         if (!parser.expectToken(TokenType.id))
+                        {
                             state = ColumnsState.fault;
+                        }
                         else
                         {
-                            value.type = Type.name;
-                            value.name = parser.token.value!Str;
+                            value.type  = Type.name;
+                            value.name  = parser.token.value!Str;
                             parser.lexer.popFront();
-                            state++;
+                            state       = ColumnsState.sep;
                         }
                         return; // stop if ver found
 
                     case ColumnsState.sep:
                         if (parser.hasChr(','))
-                            state = ColumnsState.name;
+                        {
+                            state   = ColumnsState.name;
+                        }
                         else if (parser.hasChr(' '))
-                            state++;
+                        {
+                            state   = ColumnsState.tags;
+                        }
                         else if (parser.isNewLine || parser.lexer.empty)
                         {
-                            state = ColumnsState.ok;
+                            state   = ColumnsState.ok;
                             return;
                         }
                         continue;
@@ -510,16 +595,18 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                     case ColumnsState.tags:
                         if (parser.isNewLine)
                         {
-                            state = ColumnsState.ok;
+                            state   = ColumnsState.ok;
                         }
                         else if (value.type == Type.tags)
                         {
                             if (!value.tags.consume)
-                                state = ColumnsState.fault;
+                            {
+                                state   = ColumnsState.fault;
+                            }
                             else
                             {
-                                state = ColumnsState.sep;
-                                goto eval;
+                                state   = ColumnsState.sep;
+                                goto start;
                             }
                             return;
                         }
@@ -553,10 +640,9 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
             else
                 state = ColumnsState.fault;
         }
-        @disable this();
-        @disable this(this);
+       @disable { this(); this(this); }
 
-        Parser* parser  = void;
+        Parser* parser;
         Value value     = void;
         enum ColumnsState { name, sep, tags, ok, fault }
         ColumnsState state;
@@ -629,8 +715,8 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         }
                         else if (parser.isNewLine)
                         {
-                            value = AnyTag(Tag.init);
-                            state++;
+                            value   = AnyTag(Tag.init);
+                            state   = RowsState.sep;
                         }
                         else
                         {
@@ -648,7 +734,9 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
                     case RowsState.sep:
                         if (parser.lexer.empty)
+                        {
                             state = RowsState.ok;
+                        }
                         else if (parser.hasChr(','))
                         {
                             state = RowsState.tag;
@@ -662,9 +750,13 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                             state = RowsState.ok;
                         }
                         else if (value.consume)
+                        {
                             state = RowsState.ok;
+                        }
                         else
+                        {
                             state = RowsState.fault;
+                        }
                         return;
 
                     default:
@@ -689,10 +781,9 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
             else
                 state = RowsState.fault;
         }
-        @disable this();
-        @disable this(this);
+        @disable { this(); this(this); }
 
-        Parser* parser  = void;
+        Parser* parser;
         AnyTag value    = void;
         enum RowsState { tag, sep, ok, fault }
         RowsState state;
@@ -761,7 +852,9 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                             continue;
                         }
                         else
+                        {
                             state = TagPairListState.ok;
+                        }
                         return;
 
                     case TagPairListState.ok:
@@ -815,7 +908,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
         @disable this();
         @disable this(this);
         char[] sep;
-        Parser* parser = void;
+        Parser* parser;
     }
     unittest
     {
@@ -886,38 +979,39 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                     case NameValueState.name:
                         if (parser.isSpace)
                             continue;
+
                         if (!parser.expectToken(TokenType.id))
                         {
                             state = NameValueState.fault;
                         }
                         else
                         {
-                            pair.name = parser.token.value!Str;
+                            pair.name   = parser.token.value!Str;
+                            state       = NameValueState.sep;
                             parser.lexer.popFront();
-                            state++;
                         }
                         return;
 
                     case NameValueState.sep:
                         if (parser.hasChr(':'))
                         {
-                            state++;
+                            state   = NameValueState.value;
                             continue;
                         }
                         else
                         {
-                            type = Type.marker;
-                            pair.value = AnyTag(marker);
-                            state = NameValueState.ok;
+                            type        = Type.marker;
+                            pair.value  = AnyTag(marker);
+                            state       = NameValueState.ok;
                         }
                         return;
 
                     case NameValueState.value:
                         if (parser.isSpace)
                             continue;
-                        type = Type.nameValue;
-                        pair.value = AnyTag(*parser);
-                        state = NameValueState.consume;
+                        type        = Type.nameValue;
+                        pair.value  = AnyTag(*parser);
+                        state       = NameValueState.consume;
                         return;
 
                     case NameValueState.consume:
@@ -1026,20 +1120,18 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
 
         void popFront()
         {
-            static shared Exception InvalidTagException = new shared Exception("Invalid tag type.");
             if (state == AnyTagState.scalar)
             {
                 if (!parser.isScalar)
                 {
-                    state++;
+                    state   = AnyTagState.list;
                 }
                 else
                 {
                     val.scalar = cast(Tag) parser.token.tag;
-                    parser.lexer.popFront();
                     type = Type.scalar;
                     state = AnyTagState.ok;
-                   return;
+                    return parser.lexer.popFront();
                 }
             }
 
@@ -1047,7 +1139,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
             {
                 if (!parser.hasChr('['))
                 {
-                    state++;
+                    state   = AnyTagState.dict;
                 }
                 else
                 {
@@ -1062,7 +1154,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
             {
                 if (!parser.hasChr('{'))
                 {
-                    state++;
+                    state   = AnyTagState.grid;
                 }
                 else
                 {
@@ -1077,7 +1169,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
             {
                 if (!parser.hasChr('<'))
                 {
-                    state++;
+                    state   = AnyTagState.fault;
                 }
                 else
                 {
@@ -1087,7 +1179,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                     return;
                 }
             }
-           throw InvalidTagException;
+           throw new Exception("Invalid tag type: " ~ to!string(parser.chr));
         }
 
         bool consume()
@@ -1192,7 +1284,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                             state = TagListState.fault;
                         else
                         {
-                            state++;
+                            state   = TagListState.tag;
                             continue;
                         }
                         return;
@@ -1211,8 +1303,8 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                             }
                             else
                             {
-                                val = Own!AnyTag(*parser);
-                                state++;
+                                val     = Own!AnyTag(*parser);
+                                state   = TagListState.consume;
                             }
                             return;
 
@@ -1311,10 +1403,12 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                 {
                     case TagDictState.begin:
                         if (!parser.hasChr('{'))
+                        {
                             state = TagDictState.fault;
+                        }
                         else
                         {
-                            state++;
+                            state   = TagDictState.tag;
                             continue;
                         }
                         return;
@@ -1448,7 +1542,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         {
                             if (!parser.hasChr('<'))
                             {
-                                state = TagGridState.fault;
+                                state   = TagGridState.fault;
                                 return;
                             }
                             markCnt++;
@@ -1459,7 +1553,7 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                             if (parser.isNewLine)
                             {
                                 parser.lexer.popFront();
-                                state++;
+                                state   = TagGridState.grid;
                                 goto eval;
                             }
                         }
@@ -1473,8 +1567,8 @@ if (isInputRange!Range && isSomeChar!(ElementEncodingType!Range))
                         }
                         else
                         {
-                            val = Own!Parser(parser.range);
-                            state++;
+                            val     = Own!Parser(parser.range);
+                            state   = TagGridState.end;
                         }
                         return;
 
@@ -1661,6 +1755,42 @@ unittest
         assert(grid.length == 1);
         assert(grid[0]["id"] == Ref("writePoint"));
         assert(grid[0]["range"] == Str("today"));
+    }
+
+    {
+        auto str = `ver:"3.0"
+            id, range
+            @writePoint, "today"
+            @readPoint, "yesterday"`;
+        scope rows = ZincStringParser(str).asRows;
+        Dict row    = rows.front;
+        assert(!row.empty);
+        assert(row["id"] == Ref("writePoint"));
+        assert(row["range"] == Str("today"));
+        rows.popFront();
+        assert(!rows.empty);
+        row    = rows.front;
+        assert(row["id"] == Ref("readPoint"));
+        assert(row["range"] == Str("yesterday"));
+        rows.popFront();
+        assert(rows.empty);
+        
+        size_t count;
+        foreach(r; ZincStringParser(str).asRows)
+        {
+            if (count == 0)
+            {
+                assert(r["id"] == Ref("writePoint"));
+                assert(r["range"] == Str("today"));
+            }
+            if (count == 1)
+            {
+                assert(r["id"] == Ref("readPoint"));
+                assert(r["range"] == Str("yesterday"));
+            }
+            count++;
+        }
+        assert(count == 2);
     }
 
     {
