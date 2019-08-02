@@ -1,9 +1,10 @@
 {
-    "name": "haystacklib",
-    "targetType": "library",
-    "description": "D implementation of project-haystack.org.",
-    "authors": ["Radu Racariu"],
-    "copyright": "(c) 2017, Radu Racariu",
-    "homepage": "https://github.com/rracariu/haystacklib",
-    "license": "BSL-1.0"
+  "name": "haystacklib",
+  "targetType": "library",
+  "description": "D implementation of project-haystack.org.",
+  "authors": [ "Radu Racariu" ],
+  "copyright": "(c) 2017, Radu Racariu",
+  "homepage": "https://github.com/rracariu/haystacklib",
+  "stringImportPaths": ["src/haystack/util"],
+  "license": "BSL-1.0"
 }

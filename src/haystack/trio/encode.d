@@ -91,7 +91,7 @@ unittest
     string expected =q"{bool:F
 coord:C(37.545826,-77.449188)
 date:2019-06-14
-dateTime:2019-06-14T15:24:00+03:00 Nicosia
+dateTime:2019-06-14T15:24:00+09:00 Tokyo
 marker
 na:NA
 number:42$
@@ -109,7 +109,7 @@ xstr:XStr:
         "bool":     false.tag,
         "coord":    Coord(37.545826,-77.449188).tag,
         "date":     Date(2019, 6, 14).tag,
-        "dateTime": SysTime(DateTime(Date(2019, 6, 14), TimeOfDay(15, 24, 0)), timeZone("Nicosia")).tag,
+        "dateTime": SysTime(DateTime(Date(2019, 6, 14), TimeOfDay(15, 24, 0)), timeZone("Asia/Tokyo")).tag,
         "marker":   marker,
         "na":       na,
         "number":   Num(42, "$").tag,

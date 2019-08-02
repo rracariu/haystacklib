@@ -338,6 +338,7 @@ alias TrioStringDecoder = TrioParser!string;
 
 unittest
 {
+    import haystack.util.tzdata : timeZone;
     auto scalars = q"{marker
 na: NA
 bool: T
@@ -369,6 +370,7 @@ dateTime:2019-04-09T15:24:00+02:00 Europe/Athens
     assert(dict.get!Ref("ref") == Ref("someId"));
     assert(dict.get!Date("date") == Date(2019, 6, 6));
     assert(dict.get!Time("time") == Time(15, 23, 3));
+    assert(dict.get!SysTime("dateTime") == SysTime(DateTime(Date(2019, 4, 9), Time(15, 24, 0)), timeZone("Europe/Athens")));
 }
 
 
