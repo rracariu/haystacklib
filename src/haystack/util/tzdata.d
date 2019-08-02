@@ -129,7 +129,7 @@ version (Windows)
     {
         if (name.sicmp("UTC") == 0)
             return UTC();
-        
+
         if (name in conv.toWindows)
             return new immutable HaystackTimeZone(name, WindowsTimeZone.getTimeZone(conv.toWindows[name][0]));
         else
@@ -139,7 +139,7 @@ version (Windows)
     string getTimeZoneName(immutable(TimeZone) tz)
     {
         immutable name = tz.name;
-        if (name == "Coordinated Universal Time")
+        if (!name.length || name == "Coordinated Universal Time")
             return "UTC";
         if (cast(HaystackTimeZone) tz)
             return (cast(HaystackTimeZone) tz).cityName;
