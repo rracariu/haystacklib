@@ -97,14 +97,14 @@ struct Tag
     /**
     Construct a `Tag` from  a string
     */
-    this(inout string val) inout pure nothrow
+    this(string val) inout pure nothrow
     {
         mixin(`value.`~valNameForType!Str~` = Str(val);`);
         this.curType = Type.Str;
     }
 
     /**
-    Asigns a string to a `Tag`
+    Assigns a string to a `Tag`
     */
     ref Tag opAssign(string val) return
     {
@@ -203,7 +203,7 @@ struct Tag
         return "";
     }
     
-    // Check eqaulity between 2 `Tag`s
+    // Check equality between 2 `Tag`s
     bool opEquals()(auto ref const(Tag) other) const
     {
         if (this.curType != other.curType)
@@ -219,7 +219,7 @@ struct Tag
         return false;
     }
 
-    // Generate equality operator allowed types, except List and Dict
+    // Auto-generate equality operator for allowed types
     static foreach (T; AllowedTypes)
     {
         static if (!is(T == Dict) && !is(T == List))
@@ -287,7 +287,7 @@ struct Tag
                 static if (hasMember!(T, "toHash"))
                     return getValueForType!T().toHash();
                 else
-                    return () @trusted { return getValueForType!T().hashOf();}();
+                    return (() @trusted => getValueForType!T().hashOf())();
             }
         }
         return 0;
