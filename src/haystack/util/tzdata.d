@@ -55,9 +55,11 @@ version(Posix)
 
     static immutable(TimeZone) timeZone(string name)
     {
+        import std.string : indexOf;
+
         if (!hasTzData || name.sicmp("UTC") == 0 || name.sicmp("STD") == 0)
             return UTC();
-        if (name.contains('/'))
+        if (name.indexOf('/') != -1)
         {
             return PosixTimeZone.getTimeZone(name);
         }
