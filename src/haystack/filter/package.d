@@ -50,7 +50,8 @@ if (isCharInputRange!Range)
     {
         this.or = Or(other.or);
     }
-    @disable { this(); this(this); }
+
+    @disable this();
 
     bool eval(Obj, Resolver)(Obj obj, Resolver resolver) const
     {
