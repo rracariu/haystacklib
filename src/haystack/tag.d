@@ -520,12 +520,12 @@ unittest
 Creates a Tag from a buildin type.
 Returns: Tag
 **/
-Tag tag(double val, string unit = "")
+Tag tag(double val, string unit = "") pure
 { 
     return Tag(Num(val, unit));
 }
 /// ditto
-Tag tag(long val, string unit = "")
+Tag tag(long val, string unit = "") pure
 { 
     return Tag(Num(val, unit));
 }
@@ -538,7 +538,7 @@ unittest
     assert(42.tag("C") == Tag(Num(42, "C")));
 }
 /// ditto
-Tag tag(T:string)(T t)
+Tag tag(T:string)(T t) pure
 {
     return Tag(Str(t));
 }
@@ -605,6 +605,67 @@ Returns: a Na Tag
 unittest
 {
     assert(na == Tag(Na()));
+}
+
+/**
+Creates a Num ($D Tag).
+Returns: a Num Tag
+**/
+@property Tag num(double val, string unit = "") pure
+{
+    return tag(val, unit);
+}
+/// ditto
+@property Tag num(long val, string unit = "") pure
+{
+    return tag(val, unit);
+}
+///
+unittest
+{
+    assert(num(9, "m") == Tag(Num(9, "m")));
+}
+
+/**
+Creates a Str ($D Tag).
+Returns: a Str Tag
+**/
+@property Tag str(string val) pure
+{
+    return tag(val);
+}
+///
+unittest
+{
+    assert(str("hello world!") == Tag(Str("hello world!")));
+}
+
+/**
+Creates a Uri ($D Tag).
+Returns: a Uri Tag
+**/
+@property Tag uri(string val) pure
+{
+    return Tag(Uri(val));
+}
+///
+unittest
+{
+    assert(uri("http://foo.bar") == Tag(Uri("http://foo.bar")));
+}
+
+/**
+Creates a Bool ($D Tag).
+Returns: a Bool Tag
+**/
+@property Tag boolean(bool val) pure
+{
+    return tag(val);
+}
+///
+unittest
+{
+    assert(boolean(false) != Tag(Bool(true)));
 }
 
 /************************************************************
@@ -713,6 +774,11 @@ struct Num
     @property T to(T)() const
     {
         import std.conv : to;
+        import std.traits : isIntegral;
+
+        static if (isIntegral!T) 
+            if (isNaN)
+                return T.init;
         return to!T(val);
     }
 
@@ -742,6 +808,8 @@ unittest
     auto t = a.tag();
     assert(t.get!(Num).val == 42 && t.get!(Num).unit == "$");
 
+    const nan = Num.init;
+    assert(nan.to!int == 0);
 }
 /************************************************************
 Holds a string value
